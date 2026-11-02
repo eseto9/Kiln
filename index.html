@@ -68,6 +68,7 @@ ul{padding-left:18px}
   <button class="btn small ghost" id="bMenu">≡</button>
   <button class="btn small undo" id="bUndo">Undo</button>
   <button class="btn small fire" id="bFire">Fire</button>
+  <button class="btn small ghost hidden" id="bPass">Pass</button>
   <button class="btn small ghost hidden" id="bRelight">Relight</button>
   <button class="btn small ghost" id="bBoons">Boons</button>
 </div>
@@ -75,10 +76,11 @@ ul{padding-left:18px}
 <div class="screen on clear" id="sTitle">
   <div style="margin:auto;width:100%;display:flex;flex-direction:column;align-items:center">
     <h1 class="logo">KILN</h1>
-    <div class="tag">forty windows before nightfall</div>
+    <div class="tag">two glaziers, one window</div>
     <div class="menu">
-      <button class="btn" id="bRun">New run</button>
-      <button class="btn" id="bDaily">Daily window</button>
+      <button class="btn" id="bDuel">Duel the Rival</button>
+      <button class="btn ghost" id="bRun">Solo run</button>
+      <button class="btn ghost" id="bDaily">Daily window</button>
       <button class="btn ghost" id="bRelics">Relics</button>
       <button class="btn ghost" id="bHelp">How to play</button>
     </div>
@@ -107,7 +109,9 @@ ul{padding-left:18px}
     <li>A <b>flawless</b> window, every cell set: +5.</li>
   </ul>
   <p>When the light runs out, night falls and the run ends. The sky behind the glass tells you how late it is.</p>
-  <h3>Boons and cathedrals</h3>
+  <h3>Duel</h3>
+  <p>You and the Rival share one window and take turns cutting. A valid pane sets in <b>your</b> colour (warm) or the Rival's (cool). An invalid pane dissolves and costs you the turn. A few cells carry a <b>gilt</b> star and count three. When no legal pane is left anywhere, the window fires: stranded cells go dead and whoever scored more takes the window. First to three windows wins. The trick is leaving the Rival nothing to cut.</p>
+  <h3>Boons and cathedrals (solo run)</h3>
   <p>After every window, draft one of three boons. They stack for the whole run and some pairs unlock a <b>synergy</b>. Every fifth window is a cathedral window: bigger, more rules. Clear it and its <b>relic</b> is yours for every run after.</p>
   <h3>Tips</h3>
   <ul>
@@ -116,6 +120,23 @@ ul{padding-left:18px}
     <li>Undo is cheap. Empties are not. Lift a bad pane rather than fire around it.</li>
   </ul>
   <button class="btn ghost" data-close>Back</button>
+</div></div>
+
+<div class="screen" id="sDuel"><div class="panel">
+  <h2>Choose your rival</h2>
+  <p class="center dim">Best of five windows. You cut first on the first window, then it alternates.</p>
+  <div class="cards">
+    <div class="card t1" data-ai="apprentice"><div class="nm">The Apprentice</div><div class="tier">easy</div><div class="ds">Cuts whatever fits, with a taste for big panes. Good for learning the rules.</div></div>
+    <div class="card t2" data-ai="master"><div class="nm">The Master</div><div class="tier">hard</div><div class="ds">Reads every legal pane on the board and cuts the one that strands the most glass on you.</div></div>
+  </div>
+  <button class="btn ghost" data-close>Back</button>
+</div></div>
+
+<div class="screen" id="sDuelWin"><div class="panel">
+  <h2 id="dwTitle">Window yours</h2>
+  <p class="center" id="dwText"></p>
+  <div class="stats" id="dwStats"></div>
+  <button class="btn" id="bDuelNext">Next window</button>
 </div></div>
 
 <div class="screen" id="sRelics"><div class="panel">
@@ -187,7 +208,7 @@ ul{padding-left:18px}
 'use strict';
 // ───────────────────────── storage ─────────────────────────
 const Store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
-const SAVE=Object.assign({relics:[],best:{windows:0,glass:0},daily:{},runs:0,glass:0,muted:false},Store.get('kiln2',{}));
+const SAVE=Object.assign({relics:[],best:{windows:0,glass:0},daily:{},runs:0,glass:0,muted:false,duel:{apprentice:[0,0],master:[0,0]}},Store.get('kiln2',{}));
 const save=()=>Store.set('kiln2',SAVE);
 
 // ───────────────────────── rng ─────────────────────────
@@ -401,13 +422,15 @@ function gain(v){if(v<=0)return;const b=run.light;run.light=clamp(run.light+v,0,
 const W=()=>run.win.w,H=()=>run.win.h;
 const nbrs=i=>{const w=W(),h=H(),x=i%w,y=(i/w)|0,r=[];if(x>0)r.push(i-1);if(x<w-1)r.push(i+1);if(y>0)r.push(i-w);if(y<h-1)r.push(i+w);return r};
 const PALETTE=['#c9362c','#e2761c','#e4b62a','#3a9a48','#2d7fd2','#6a48c8','#c43f8c','#1f9f98'];
-function setRegion(idxs,silent){
+const WARM=['#c9362c','#e2761c','#e4b62a','#c43f8c'],COOL=['#2d7fd2','#6a48c8','#1f9f98','#3a9a48'];
+function setRegion(idxs,silent,owner){
   const win=run.win;const id=win.regions.length;
+  const pal=owner===0?WARM:owner===1?COOL:PALETTE;
   const nbCols=new Set();for(const i of idxs)for(const n of nbrs(i)){const c=win.cells[n];if(c.s==='set')nbCols.add(win.regions[c.r].col)}
   const used=win.regions.map(r=>r.col);
-  const prefer=PALETTE.filter(c=>!nbCols.has(c)).sort((a,b)=>used.filter(u=>u===a).length-used.filter(u=>u===b).length);
-  const col=prefer.length?prefer[0]:PALETTE[id%PALETTE.length];
-  win.regions.push({cells:idxs,col,t:performance.now()});
+  const prefer=pal.filter(c=>!nbCols.has(c)).sort((a,b)=>used.filter(u=>u===a).length-used.filter(u=>u===b).length);
+  const col=prefer.length?prefer[0]:pal[id%pal.length];
+  win.regions.push({cells:idxs,col,t:performance.now(),owner});
   for(const i of idxs){win.cells[i].s='set';win.cells[i].r=id}
   if(!silent){run.stats.glass+=idxs.length;SAVE.glass+=idxs.length;sfx('set',idxs.length);sparkle(idxs,col)}
   revealDark();dirty=true;
@@ -421,6 +444,7 @@ function undoLast(){
 }
 function dissolve(idxs,reason){
   shards(idxs,'#fff1d8');sfx('dissolve');toast(reason,900);
+  if(run.mode==='duel')return;
   if(has('spare')&&!run.usedSpare){run.usedSpare=true;return}
   spend(COST.invalid,'dissolve');
 }
@@ -449,6 +473,7 @@ function validate(idxs){
 function commitPath(){
   const p=path.slice();path=[];
   if(p.length<2||run.phase!=='play')return;
+  if(run.mode==='duel'){duelCommit(p);return}
   if(hitLead){hitLead=false;dissolve(p.filter(i=>run.win.cells[i].s==='free'),'Cut into lead');return}
   const v=validate(p);
   if(v.ok){setRegion(p);checkFull();return}
@@ -516,8 +541,8 @@ const scale=(c,k)=>[c[0]*k,c[1]*k,c[2]*k];
 // [t, horizon, zenith]
 const SKY=[[0,[248,190,120],[110,150,215]],[.35,[200,228,250],[80,135,220]],[.7,[245,150,70],[110,60,140]],[1,[38,30,70],[8,6,22]]];
 function sky(p){let i=0;while(i<SKY.length-2&&p>SKY[i+1][0])i++;const a=SKY[i],b=SKY[i+1];const t=clamp((p-a[0])/(b[0]-a[0]),0,1);return{hz:mixc(a[1],b[1],t),zn:mixc(a[2],b[2],t)}}
-function dayProgress(){return run?clamp((run.n-1)/(TOTAL-1),0,1):0.2}
-function lightFactor(){if(!run)return 1;const f=run.light/run.max;return 0.18+0.82*Math.pow(f,.7)}
+function dayProgress(){if(!run)return 0.2;if(run.mode==='duel')return clamp((run.wn-1)/4,0,1);return clamp((run.n-1)/(TOTAL-1),0,1)}
+function lightFactor(){if(!run)return 1;if(run.mode==='duel')return 1;const f=run.light/run.max;return 0.18+0.82*Math.pow(f,.7)}
 
 // ───────────────────────── canvas ─────────────────────────
 const cv=document.getElementById('c'),ctx=cv.getContext('2d');
@@ -528,10 +553,10 @@ const noiseC=document.createElement('canvas');
 (function makeNoise(){noiseC.width=noiseC.height=96;const n=noiseC.getContext('2d');n.fillStyle='rgba(128,128,128,1)';n.fillRect(0,0,96,96);for(let k=0;k<140;k++){const x=Math.random()*96,y=Math.random()*96,r=4+Math.random()*16;const g=n.createRadialGradient(x,y,0,x,y,r);const v=Math.random()<.5?0:255;g.addColorStop(0,`rgba(${v},${v},${v},.22)`);g.addColorStop(1,`rgba(${v},${v},${v},0)`);n.fillStyle=g;n.fillRect(x-r,y-r,r*2,r*2)}})();
 function resize(){DPR=Math.min(2,window.devicePixelRatio||1);CW=window.innerWidth;CH=window.innerHeight;cv.width=CW*DPR;cv.height=CH*DPR;cv.style.width=CW+'px';cv.style.height=CH+'px';ctx.setTransform(DPR,0,0,DPR,0,0);dirty=true;initMotes()}
 window.addEventListener('resize',resize);
-let path=[],hitLead=false,fxs=[],shake=0,parts=[],motes=[],floats=[];
+let path=[],hitLead=false,fxs=[],shake=0,parts=[],motes=[],floats=[],aiPreview=null;
 function initMotes(){motes=[];for(let i=0;i<34;i++)motes.push({x:Math.random(),y:Math.random(),s:.4+Math.random()*1.2,ph:Math.random()*7,sp:.2+Math.random()*.5})}
 function layout(){
-  const win=run.win;const head=70+win.rules.length*21;const bar=76;const pad=22;
+  const win=run.win;const head=70+win.rules.length*21+(run.mode==='duel'?20:0);const bar=76;const pad=22;
   const archMax=Math.min(54,Math.floor(CW*.14));
   const availH=CH-head-bar-pad-archMax-14;const availW=CW-pad*2;
   let cell=Math.floor(Math.min(availW/win.w,(availH-56)/win.h));cell=Math.max(cell,16);
@@ -545,6 +570,7 @@ function layout(){
 function cellAt(px,py){const L=layout();const x=Math.floor((px-L.ox)/L.cell),y=Math.floor((py-L.oy)/L.cell);if(x<0||y<0||x>=W()||y>=H())return-1;return y*W()+x}
 function cellCenter(i,L){return[L.ox+(i%W()+.5)*L.cell,L.oy+((i/W()|0)+.5)*L.cell]}
 function roundRect(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath()}
+function drawGilt(c,x,y,r){c.save();c.shadowColor='rgba(255,215,120,.95)';c.shadowBlur=r;c.fillStyle='#ffe9a8';c.beginPath();for(let k=0;k<8;k++){const a=k*Math.PI/4;const rr=k%2?r*.32:r;c.lineTo(x+Math.cos(a)*rr,y+Math.sin(a)*rr)}c.closePath();c.fill();c.shadowBlur=0;c.fillStyle='#b8831c';c.beginPath();c.arc(x,y,r*.18,0,7);c.fill();c.restore()}
 function drawGem(c,x,y,r,lf){c.save();c.shadowColor='rgba(160,220,255,.9)';c.shadowBlur=r*1.6;c.fillStyle=rgba([255,250,235],lf);c.beginPath();c.moveTo(x,y-r);c.lineTo(x+r*.78,y);c.lineTo(x,y+r);c.lineTo(x-r*.78,y);c.closePath();c.fill();c.shadowBlur=0;c.fillStyle=rgba([120,200,255],.75*lf);c.beginPath();c.moveTo(x,y-r*.5);c.lineTo(x+r*.38,y);c.lineTo(x,y+r*.5);c.lineTo(x-r*.38,y);c.closePath();c.fill();c.restore()}
 function drawShapeIcon(c,x,y,shapeId,size,col){const cells=normalize(SHAPES[shapeId].cells);const bw=Math.max(...cells.map(p=>p[0]))+1,bh=Math.max(...cells.map(p=>p[1]))+1;const s=Math.min(size/bw,size/bh,9);const oy=y+(size-bh*s)/2;c.fillStyle=col;for(const[cx,cy]of cells)c.fillRect(x+cx*s+.5,oy+cy*s+.5,s-1,s-1)}
 function ruleText(r){if(r.type==='shape')return'Every pane is this shape';if(r.type==='area')return'Every pane has '+r.sizes.join(' or ')+' cells';if(r.type==='gem')return'Every pane holds one gem';if(r.type==='frame')return'Every pane touches the frame';return''}
@@ -562,6 +588,9 @@ function renderGlass(L){
       gctx.fillStyle='rgba(20,14,12,.62)';gctx.fillRect(x,y,c,c);
       gctx.globalCompositeOperation='overlay';gctx.globalAlpha=.3;gctx.drawImage(noiseC,(i*37)%60,(i*53)%60,36,36,x,y,c,c);gctx.globalAlpha=1;gctx.globalCompositeOperation='source-over';
       const hg=gctx.createLinearGradient(x,y,x+c,y+c);hg.addColorStop(0,'rgba(255,255,255,.10)');hg.addColorStop(.5,'rgba(255,255,255,.02)');hg.addColorStop(1,'rgba(0,0,0,.12)');gctx.fillStyle=hg;gctx.fillRect(x,y,c,c);
+    }else if(cell.s==='dead'){
+      gctx.fillStyle='#3a3431';gctx.fillRect(x,y,c,c);gctx.globalCompositeOperation='overlay';gctx.globalAlpha=.3;gctx.drawImage(noiseC,(i*13)%60,(i*31)%60,30,30,x,y,c,c);gctx.globalAlpha=1;gctx.globalCompositeOperation='source-over';
+      let sd=hashStr('d'+i);const rr=()=>{sd=(sd*1664525+1013904223)>>>0;return sd/4294967296};gctx.strokeStyle='rgba(12,8,6,.8)';gctx.lineWidth=1.2;gctx.beginPath();const cx=x+c*(.35+rr()*.3),cy=y+c*(.35+rr()*.3);for(let k=0;k<3;k++){gctx.moveTo(cx,cy);let px=cx,py=cy;const ang=rr()*6.28;for(let j=0;j<3;j++){px+=Math.cos(ang+(rr()-.5))*c*.22;py+=Math.sin(ang+(rr()-.5))*c*.22;gctx.lineTo(px,py)}}gctx.stroke();
     }else if(cell.s==='lead'){
       gctx.fillStyle='#211b19';gctx.fillRect(x,y,c,c);gctx.globalAlpha=.25;gctx.drawImage(noiseC,(i*17)%60,(i*29)%60,30,30,x,y,c,c);gctx.globalAlpha=1;
       const r=c*.17;const sg2=gctx.createRadialGradient(x+c/2-r*.3,y+c/2-r*.3,0,x+c/2,y+c/2,r);sg2.addColorStop(0,'#4a403b');sg2.addColorStop(1,'#0e0b0a');gctx.fillStyle=sg2;gctx.beginPath();gctx.arc(x+c/2,y+c/2,r,0,7);gctx.fill();
@@ -576,6 +605,7 @@ function renderGlass(L){
       const hg=gctx.createLinearGradient(x,y,x+c*.9,y+c);hg.addColorStop(0,'rgba(255,255,255,.20)');hg.addColorStop(.45,'rgba(255,255,255,.03)');hg.addColorStop(1,'rgba(0,0,0,.18)');gctx.fillStyle=hg;gctx.fillRect(x,y,c,c);
     }
     if(cell.gem)drawGem(gctx,x+c/2,y+c/2,c*.15,lf);
+    if(cell.gilt)drawGilt(gctx,x+c/2,y+c/2,cell.s==='set'?c*.17:c*.22);
   }
   // cames: bevelled lead between panes, faint seam inside a pane
   const same=(a,b)=>a&&b&&a.s==='set'&&b.s==='set'&&a.r===b.r;
@@ -643,6 +673,7 @@ function drawArch(L,now){
   ctx.strokeStyle='#17110f';ctx.lineWidth=5;archPath(ctx);ctx.stroke();ctx.strokeStyle='rgba(241,210,138,.22)';ctx.lineWidth=1;archPath(ctx);ctx.stroke();
 }
 function drawHeader(now){
+  if(run.mode==='duel'){drawDuelHeader(now);return}
   const win=run.win;ctx.textBaseline='middle';ctx.textAlign='left';
   ctx.fillStyle='#cdb693';ctx.font='11px Georgia';
   const label=(win.cathedral?'CATHEDRAL  ·  ':'WINDOW  ')+run.n+' / '+TOTAL+(win.name?'  ·  '+win.name.toUpperCase():'')+(win.dark?'  ·  DARK':'');
@@ -693,6 +724,9 @@ function draw(now){
   ctx.drawImage(glassC,L.ox,L.oy,L.gw,L.gh);
   // fresh panes flash
   for(const reg of win.regions){const age=now-reg.t;if(age<520){const a=.7*(1-age/520);ctx.fillStyle=`rgba(255,250,235,${a})`;for(const i of reg.cells){const x=L.ox+(i%w)*c,y=L.oy+(i/w|0)*c;ctx.fillRect(x,y,c,c)}}}
+  // the Rival's chosen cut, shown before it sets
+  if(aiPreview){const pulse=.25+.2*Math.sin(now/90);ctx.fillStyle=`rgba(150,200,255,${pulse})`;for(const i of aiPreview){const x=L.ox+(i%w)*c,y=L.oy+(i/w|0)*c;ctx.fillRect(x+1,y+1,c-2,c-2)}
+    ctx.strokeStyle='rgba(190,225,255,.95)';ctx.lineWidth=2.5;for(const i of aiPreview){const x=L.ox+(i%w)*c,y=L.oy+(i/w|0)*c;const nb=nbrs(i);const edge=(j,x1,y1,x2,y2)=>{if(!nb.includes(j)||!aiPreview.includes(j)){ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke()}};edge(i-1,x+1,y+1,x+1,y+c-1);edge(i+1,x+c-1,y+1,x+c-1,y+c-1);edge(i-w,x+1,y+1,x+c-1,y+1);edge(i+w,x+1,y+c-1,x+c-1,y+c-1)}}
   // current cut
   if(path.length){ctx.fillStyle='rgba(255,241,216,.38)';for(const i of path){const x=L.ox+(i%w)*c,y=L.oy+(i/w|0)*c;ctx.fillRect(x+1,y+1,c-2,c-2)}
     ctx.strokeStyle='rgba(255,246,225,.95)';ctx.lineWidth=2.5;ctx.lineJoin='round';for(const i of path){const x=L.ox+(i%w)*c,y=L.oy+(i/w|0)*c;const nb=nbrs(i);const edge=(j,x1,y1,x2,y2)=>{if(!nb.includes(j)||!path.includes(j)){ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke()}};
@@ -709,7 +743,7 @@ function draw(now){
       ctx.save();ctx.globalCompositeOperation='lighter';const rg=ctx.createRadialGradient(CW/2,L.oy+L.gh/2,10,CW/2,L.oy+L.gh/2,L.gw);rg.addColorStop(0,`rgba(255,235,190,${.8*a})`);rg.addColorStop(1,'rgba(255,170,80,0)');ctx.fillStyle=rg;ctx.fillRect(0,0,CW,CH);
       for(let k=0;k<7;k++){const x=L.ox+L.gw*(k+.5)/7;ctx.fillStyle=`rgba(255,230,180,${.18*a})`;ctx.beginPath();ctx.moveTo(x-L.cell*.4,L.oy+L.gh);ctx.lineTo(x+L.cell*.4,L.oy+L.gh);ctx.lineTo(x+L.cell*1.6+(x-CW/2)*.3,CH);ctx.lineTo(x-L.cell*1.6+(x-CW/2)*.3,CH);ctx.closePath();ctx.fill()}
       ctx.restore();
-      ctx.fillStyle=`rgba(255,246,225,${a})`;ctx.font='bold 26px Georgia';ctx.textAlign='center';ctx.shadowColor='rgba(0,0,0,.6)';ctx.shadowBlur=10;ctx.fillText(f.flawless?'F L A W L E S S':'F I R E D',CW/2,L.oy+L.gh/2);ctx.shadowBlur=0}
+      ctx.fillStyle=`rgba(255,246,225,${a})`;ctx.font='bold '+((f.label||'').length>14?Math.min(26,Math.floor(CW/17)):26)+'px Georgia';ctx.textAlign='center';ctx.shadowColor='rgba(0,0,0,.6)';ctx.shadowBlur=10;ctx.fillText(f.label||(f.flawless?'F L A W L E S S':'F I R E D'),CW/2,L.oy+L.gh/2);ctx.shadowBlur=0}
     if(f.type==='night'){const a=Math.min(1,t/1.4);ctx.fillStyle=`rgba(4,3,8,${a*.92})`;ctx.fillRect(0,0,CW,CH);if(t>.6){ctx.fillStyle=`rgba(200,205,255,${Math.min(1,(t-.6))})`;ctx.font='22px Georgia';ctx.textAlign='center';ctx.fillText('N I G H T   F A L L S',CW/2,CH*.45)}}
   }
   // floating numbers
@@ -749,6 +783,136 @@ cv.addEventListener('pointermove',e=>{if(!dragging||!run||run.phase!=='play')ret
 const endDrag=()=>{if(!dragging)return;dragging=false;if(run&&run.win)commitPath();hitLead=false;if(run)updateBar()};
 cv.addEventListener('pointerup',endDrag);cv.addEventListener('pointercancel',endDrag);
 
+
+// ───────────────────────── duel ─────────────────────────
+const DUEL_SPECS=[
+  n=>({w:6,h:6,rules:[{type:'shape',shape:pick(['L3','I3'])}],leadMax:1}),
+  n=>({w:6,h:6,rules:[{type:'area',sizes:[4]}],leadMax:2}),
+  n=>({w:7,h:7,rules:[{type:'shape',shape:pick(['T4','L4','I4'])}],leadMax:2}),
+  n=>({w:7,h:7,rules:[{type:'area',sizes:[pick([4,5])]},{type:'gem'}],leadMax:2}),
+  n=>({w:8,h:8,rules:[{type:'shape',shape:pick(['P5','L5','T4'])},{type:'gem'}],leadMax:3}),
+];
+function newDuel(ai){
+  rng=mulberry32((Math.random()*2**32)>>>0);
+  run={mode:'duel',ai,wn:1,wins:[0,0],totals:[0,0],win:null,turn:0,over:false,phase:'play',light:100,max:100,boons:{},relic:null,stats:{glass:0}};
+  $('bAgain').textContent='Rematch';
+  startDuelWindow();
+}
+function startDuelWindow(){
+  const spec=DUEL_SPECS[run.wn-1](run.wn);spec.name=null;
+  run.win=makeWindow(spec);run.win.dark=false;for(const c of run.win.cells)c.vis=true;
+  const cand=run.win.cells.map((c,i)=>i).filter(i=>run.win.cells[i].s==='free'&&!run.win.cells[i].gem);shuffle(cand);
+  for(const i of cand.slice(0,spec.w-3))run.win.cells[i].gilt=true;
+  run.turn=(run.wn-1)%2;run.phase=run.turn===0?'play':'ai';aiPreview=null;path=[];fxs=[];dirty=true;
+  hide();updateBar();toast('Window '+run.wn+' of 5 · '+(run.turn===0?'your cut':'the Rival cuts first'),1500);
+  if(run.turn===1)aiTurn();
+}
+const paneValue=cells=>cells.reduce((v,i)=>v+1+(run.win.cells[i].gilt?2:0),0);
+const duelScore=()=>{const s=[0,0];for(const r of run.win.regions)if(r.owner!=null)s[r.owner]+=paneValue(r.cells);return s};
+function duelCommit(p){
+  if(hitLead){hitLead=false;dissolve(p.filter(i=>run.win.cells[i].s==='free'),'Cut into lead — the Rival cuts');afterDuelMove();return}
+  const v=validate(p);
+  if(v.ok){setRegion(p,false,0);afterDuelMove();return}
+  dissolve(p,v.reasons[0]+' — the Rival cuts');afterDuelMove();
+}
+function afterDuelMove(){
+  if(run.over)return;
+  if(!legalPanes(run.win).length){run.phase='firing';updateBar();setTimeout(endDuelWindow,420);return}
+  run.turn=1-run.turn;run.phase=run.turn===0?'play':'ai';updateBar();
+  if(run.turn===1)aiTurn();
+}
+function aiTurn(){
+  run.phase='ai';updateBar();
+  setTimeout(()=>{if(!run||run.over||run.mode!=='duel')return;
+    const panes=legalPanes(run.win);if(!panes.length){endDuelWindow();return}
+    const choice=run.ai==='master'?aiMaster(panes):aiApprentice(panes);
+    aiPreview=choice.cells;sfx('undo');
+    setTimeout(()=>{if(!run||run.over||run.mode!=='duel')return;aiPreview=null;setRegion(choice.cells,false,1);afterDuelMove()},520);
+  },700);
+}
+function endDuelWindow(){
+  if(run.over)return;run.phase='firing';updateBar();
+  const win=run.win;for(const c of win.cells)if(c.s==='free')c.s='dead';dirty=true;
+  const s=duelScore();run.totals[0]+=s[0];run.totals[1]+=s[1];
+  const res=s[0]>s[1]?0:s[1]>s[0]?1:-1;if(res>=0)run.wins[res]++;
+  fxs.push({type:'fire',t:performance.now(),label:res===0?'W I N D O W   Y O U R S':res===1?'T H E   R I V A L ’ S':'S H A R E D'});sfx('fire');
+  setTimeout(()=>{if(run.over)return;
+    const done=run.wins[0]>=3||run.wins[1]>=3||run.wn>=5;
+    $('dwTitle').textContent=res===0?'Window yours':res===1?'The Rival takes it':'Shared window';
+    $('dwText').innerHTML='You scored <b>'+s[0]+'</b>, the Rival <b>'+s[1]+'</b>. Gilt cells count three.';
+    $('dwStats').innerHTML=`<div>Match <b>${run.wins[0]} – ${run.wins[1]}</b></div><div>Window <b>${run.wn} / 5</b></div><div>Your glass <b>${run.totals[0]}</b></div><div>Rival glass <b>${run.totals[1]}</b></div>`;
+    $('bDuelNext').textContent=done?'See the result':'Next window';
+    $('bDuelNext').onclick=()=>{if(done)duelOver();else{run.wn++;startDuelWindow()}};
+    show('sDuelWin');
+  },1300);
+}
+function duelOver(){
+  run.over=true;run.phase='over';$('bar').classList.remove('on');
+  const w=run.wins,won=w[0]>w[1]||(w[0]===w[1]&&run.totals[0]>run.totals[1]);const draw=w[0]===w[1]&&run.totals[0]===run.totals[1];
+  const rec=SAVE.duel[run.ai];if(!draw)rec[won?0:1]++;save();
+  $('overTitle').textContent=draw?'A shared light':won?'The window is yours':'The Rival prevails';
+  $('overText').innerHTML=(won?'You beat':'You lost to')+' the '+(run.ai==='master'?'Master':'Apprentice')+' <b>'+w[0]+' – '+w[1]+'</b> over '+run.wn+' windows.';
+  $('overStats').innerHTML=`<div>Your glass <b>${run.totals[0]}</b></div><div>Rival glass <b>${run.totals[1]}</b></div><div>Record vs ${run.ai==='master'?'Master':'Apprentice'} <b>${rec[0]} – ${rec[1]}</b></div><div></div>`;
+  titleBest();show('sOver');
+}
+// every legal pane on the board right now
+function legalPanes(win){
+  const w=win.w,h=win.h;const free=i=>win.cells[i].s==='free';const out=[];const seenKeys=new Set();
+  const shapeR=win.rules.find(r=>r.type==='shape'),areaR=win.rules.find(r=>r.type==='area');
+  const emit=cells=>{const k=cells.slice().sort((a,b)=>a-b).join(',');if(seenKeys.has(k))return;seenKeys.add(k);if(validate(cells).ok)out.push({cells})};
+  if(shapeR){
+    for(const o of orientations(SHAPES[shapeR.shape].cells,true)){const bw=Math.max(...o.map(p=>p[0])),bh=Math.max(...o.map(p=>p[1]));
+      for(let y=0;y+bh<h;y++)for(let x=0;x+bw<w;x++){const cells=[];let ok=true;for(const[dx,dy]of o){const i=(y+dy)*w+x+dx;if(!free(i)){ok=false;break}cells.push(i)}if(ok)emit(cells)}}
+    return out;
+  }
+  const sizes=areaR?areaR.sizes:[2,3,4,5,6];const maxS=Math.min(8,Math.max(...sizes));
+  const nb=i=>{const x=i%w,y=(i/w)|0,r=[];if(x>0)r.push(i-1);if(x<w-1)r.push(i+1);if(y>0)r.push(i-w);if(y<h-1)r.push(i+w);return r};
+  for(let s=0;s<w*h;s++){if(!free(s))continue;const seen=new Set([s]);const set=[s];
+    const grow=untried=>{while(untried.length){const n=untried.pop();set.push(n);if(sizes.includes(set.length))emit(set.slice());
+        if(set.length<maxS){const added=[];const nu=untried.slice();for(const m of nb(n))if(free(m)&&m>s&&!seen.has(m)){seen.add(m);added.push(m);nu.push(m)}grow(nu);for(const a of added)seen.delete(a)}
+        set.pop()}};
+    const first=[];for(const m of nb(s))if(free(m)&&m>s){seen.add(m);first.push(m)}grow(first);
+  }
+  return out;
+}
+function aiApprentice(panes){const weighted=[];for(const p of panes)for(let k=0;k<paneValue(p.cells);k++)weighted.push(p);return weighted[Math.floor(Math.random()*weighted.length)]}
+function aiMaster(panes){
+  const win=run.win;const n=win.w*win.h;const freeN=win.cells.filter(c=>c.s==='free').length;
+  const masks=panes.map(p=>{const m=new Uint32Array(3);for(const i of p.cells)m[i>>5]|=1<<(i&31);return m});
+  const disjoint=(a,b)=>!((a[0]&b[0])|(a[1]&b[1])|(a[2]&b[2]));
+  const cover=new Uint32Array(3);
+  // candidates: the biggest panes plus a random handful
+  const val=panes.map(p=>paneValue(p.cells));
+  const idx=panes.map((p,k)=>k).sort((a,b)=>val[b]-val[a]);const cand=idx.slice(0,40);for(let k=0;k<20&&idx.length>40;k++)cand.push(idx[40+Math.floor(Math.random()*(idx.length-40))]);
+  const sample=idx.length>2500?idx.filter((_,k)=>k%Math.ceil(idx.length/2500)===0):idx;
+  let best=null,bestScore=-1e9;
+  for(const c of cand){const mc=masks[c];cover[0]=cover[1]=cover[2]=0;let oppBest=0;
+    for(const k of sample){if(!disjoint(masks[k],mc))continue;const m=masks[k];cover[0]|=m[0];cover[1]|=m[1];cover[2]|=m[2];if(val[k]>oppBest)oppBest=val[k]}
+    let covered=0;for(let i=0;i<n;i++)if(cover[i>>5]>>>(i&31)&1)covered++;
+    const stranded=freeN-panes[c].cells.length-covered;
+    const score=val[c]*1.0+stranded*0.9-oppBest*0.5+Math.random()*0.4;
+    if(score>bestScore){bestScore=score;best=panes[c]}}
+  return best||panes[0];
+}
+function drawDuelHeader(now){
+  const win=run.win;ctx.textBaseline='middle';ctx.textAlign='left';
+  ctx.fillStyle='#cdb693';ctx.font='11px Georgia';
+  ctx.fillText('DUEL  ·  WINDOW  '+run.wn+' / 5  ·  '+(run.ai==='master'?'THE MASTER':'THE APPRENTICE')+'  ·  '+run.wins[0]+' – '+run.wins[1],16,22);
+  const s=duelScore();const total=Math.max(1,win.cells.reduce((v,c)=>v+(c.s==='lead'?0:1+(c.gilt?2:0)),0));
+  const bx=16,by=34,bw=CW-32,bh=14;ctx.fillStyle='rgba(0,0,0,.5)';roundRect(ctx,bx,by,bw,bh,7);ctx.fill();
+  ctx.save();roundRect(ctx,bx,by,bw,bh,7);ctx.clip();
+  const wg=ctx.createLinearGradient(bx,0,bx+bw/2,0);wg.addColorStop(0,'#e2761c');wg.addColorStop(1,'#c9362c');ctx.fillStyle=wg;ctx.fillRect(bx,by,bw*s[0]/total,bh);
+  const cg=ctx.createLinearGradient(bx+bw/2,0,bx+bw,0);cg.addColorStop(0,'#6a48c8');cg.addColorStop(1,'#2d7fd2');ctx.fillStyle=cg;ctx.fillRect(bx+bw-bw*s[1]/total,by,bw*s[1]/total,bh);
+  ctx.restore();ctx.strokeStyle='rgba(241,210,138,.4)';ctx.lineWidth=1;roundRect(ctx,bx+.5,by+.5,bw-1,bh-1,7);ctx.stroke();
+  ctx.font='bold 10px Georgia';ctx.textAlign='center';ctx.lineWidth=3;ctx.strokeStyle='rgba(20,12,8,.85)';ctx.lineJoin='round';const lbl='YOU  '+s[0]+'   ·   '+s[1]+'  RIVAL';ctx.strokeText(lbl,CW/2,by+bh/2+.5);ctx.fillStyle='#fff3dc';ctx.fillText(lbl,CW/2,by+bh/2+.5);
+  ctx.textAlign='left';ctx.font='14px Georgia';let ry=64;
+  for(const r of win.rules){ctx.fillStyle='#f6ecda';const t=ruleText(r);ctx.fillText(t,16,ry);const tw=ctx.measureText(t).width;if(r.type==='shape')drawShapeIcon(ctx,16+tw+10,ry-9,r.shape,18,'#f1d28a');if(r.type==='gem')drawGem(ctx,16+tw+14,ry,6,1);ry+=21}
+  ctx.font='italic 13px Georgia';
+  if(run.phase==='play'){ctx.fillStyle='#ffd08a';ctx.fillText('Your cut',16,ry)}
+  else if(run.phase==='ai'){ctx.fillStyle='#9fc8ff';const dots='.'.repeat(1+Math.floor(now/400)%3);ctx.fillText('The Rival is cutting'+dots,16,ry)}
+  else{ctx.fillStyle='#cdb693';ctx.fillText('The window fires',16,ry)}
+}
+
 // ───────────────────────── sound ─────────────────────────
 let AC=null;
 function sfx(kind,n=1){
@@ -770,11 +934,14 @@ document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',
 let toastT=null;function toast(msg,ms=1200){const t=$('toast');t.textContent=msg;t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on'),ms)}
 function updateBar(){
   if(!run)return;$('bar').classList.toggle('on',!run.over);
+  const duel=run.mode==='duel';
+  $('bUndo').classList.toggle('hidden',duel);$('bFire').classList.toggle('hidden',duel);$('bBoons').classList.toggle('hidden',duel);$('bPass').classList.toggle('hidden',!duel);
+  if(duel){$('bPass').disabled=run.phase!=='play';$('bRelight').classList.add('hidden');return}
   $('bUndo').disabled=run.win.regions.length<=run.win.locked;
   $('bRelight').classList.toggle('hidden',!(has('relight')||relic('great')));$('bRelight').disabled=run.relightLeft<=0;
   const free=freeCount();$('bFire').textContent=free?'Fire · '+free+' empty':'Fire';
 }
-function titleBest(){const d=SAVE.daily[todayKey()];$('titleBest').innerHTML='Best run · window '+SAVE.best.windows+' · '+SAVE.best.glass+' glass<br>'+(d?'Today · window '+d.windows+' · light '+d.light:'Daily not yet attempted')+'<br>Relics '+SAVE.relics.length+' / '+RELICS.length}
+function titleBest(){const d=SAVE.daily[todayKey()];const du=SAVE.duel;$('titleBest').innerHTML='Duels · Apprentice '+du.apprentice[0]+'–'+du.apprentice[1]+' · Master '+du.master[0]+'–'+du.master[1]+'<br>Best run · window '+SAVE.best.windows+' · '+SAVE.best.glass+' glass<br>'+(d?'Today · window '+d.windows+' · light '+d.light:'Daily not yet attempted')+'<br>Relics '+SAVE.relics.length+' / '+RELICS.length}
 titleBest();
 $('bHelp').onclick=()=>show('sHelp');$('bHelp2').onclick=()=>show('sHelp');
 $('bRelics').onclick=()=>{$('relicCards').innerHTML=RELICS.map(r=>`<div class="card t2 ${SAVE.relics.includes(r.id)?'':'locked'}"><div class="nm">${r.name}</div><div class="tier">window ${r.win}</div><div class="ds">${SAVE.relics.includes(r.id)?r.desc:'Clear cathedral window '+r.win+' to unlock.'}</div></div>`).join('');show('sRelics')};
@@ -784,9 +951,12 @@ function begin(daily){
     $('relicPickCards').querySelectorAll('.card').forEach(c=>c.onclick=()=>{run.relic=c.dataset.r;launch()});show('sRelicPick');return}
   launch();
 }
-function launch(){applyRelic();hide();startWindow()}
+function launch(){applyRelic();hide();$('bAgain').textContent='New run';startWindow()}
 $('bNoRelic').onclick=()=>launch();
 $('bRun').onclick=()=>begin(false);
+$('bDuel').onclick=()=>show('sDuel');
+document.querySelectorAll('#sDuel .card').forEach(c=>c.onclick=()=>newDuel(c.dataset.ai));
+$('bPass').onclick=()=>{if(run.mode!=='duel'||run.phase!=='play')return;toast('You pass — the Rival cuts',900);afterDuelMove()};
 $('bDaily').onclick=()=>begin(true);
 $('bUndo').onclick=()=>undoLast();
 $('bFire').onclick=()=>{if(run.phase!=='play')return;const free=freeCount();const cost=emptyCost(free)+(syn('stillair')?0:has('slowsun')?1:COST.day);
@@ -798,7 +968,7 @@ $('bBoons').onclick=()=>{const owned=BOONS.filter(b=>has(b.id));const syns=SYNER
   $('boonList').innerHTML=(run.relic?'<p><span>Relic · '+byId(RELICS,run.relic).name+'</span> — '+byId(RELICS,run.relic).desc+'</p>':'')+(owned.length?owned.map(b=>'<p><span>'+b.name+(run.boons[b.id]>1?' ×'+run.boons[b.id]:'')+'</span> — '+b.desc+'</p>').join(''):'<p class="dim">No boons yet. Fire a window to draft one.</p>')+syns.map(s=>'<p><span>Synergy · '+s.name+'</span> — '+s.desc+'</p>').join('');show('sBoons')};
 $('bMenu').onclick=()=>{$('bMute').textContent='Sound: '+(SAVE.muted?'off':'on');show('sPause')};
 $('bMute').onclick=()=>{SAVE.muted=!SAVE.muted;save();$('bMute').textContent='Sound: '+(SAVE.muted?'off':'on')};
-$('bQuit').onclick=()=>{run.over=true;recordRun();run=null;$('bar').classList.remove('on');titleBest();show('sTitle')};
+$('bQuit').onclick=()=>{run.over=true;if(run.mode!=='duel')recordRun();run=null;$('bar').classList.remove('on');titleBest();show('sTitle')};
 function showDraft(){
   const offers=offerBoons();const tn=['Common','Rare','Legendary'];
   $('draftTitle').textContent='Window '+run.n+' fired';$('draftSub').textContent='Light '+Math.round(run.light)+' / '+run.max+'. Choose a boon.';
@@ -814,10 +984,10 @@ function showOver(won){
   $('overStats').innerHTML=`<div>Windows fired <b>${s.windows}</b></div><div>Glass set <b>${s.glass}</b></div><div>Flawless windows <b>${s.clean}</b></div><div>Empty cells <b>${s.empties}</b></div><div>Undos <b>${s.undos}</b></div><div>${run.daily?'Daily '+todayKey():'Seed '+run.seed.toString(36)}</div>`;
   titleBest();show('sOver');
 }
-$('bAgain').onclick=()=>begin(run&&run.daily);
+$('bAgain').onclick=()=>{if(run&&run.mode==='duel'){newDuel(run.ai);return}begin(run&&run.daily)};
 $('bToTitle').onclick=()=>{run=null;show('sTitle')};
-$('bShare').onclick=async()=>{const s=run.stats;const txt=`Kiln ${run.daily?'daily '+todayKey():'run'} — window ${s.windows}/${TOTAL}, ${s.glass} glass, ${s.clean} flawless. ${location.href.split('#')[0]}`;try{if(navigator.share)await navigator.share({text:txt});else{await navigator.clipboard.writeText(txt);toast('Copied',900)}}catch(e){}};
-document.addEventListener('keydown',e=>{if(!run||run.over)return;if(e.key==='Escape'){const on=document.querySelector('.screen.on');on?hide():$('bMenu').click()}if((e.key==='z'||e.key==='Z')&&!document.querySelector('.screen.on'))undoLast()});
+$('bShare').onclick=async()=>{const s=run.stats;const txt=run.mode==='duel'?`Kiln duel — ${run.wins[0]>run.wins[1]?'beat':'lost to'} the ${run.ai==='master'?'Master':'Apprentice'} ${run.wins[0]}–${run.wins[1]}. ${location.href.split('#')[0]}`:`Kiln ${run.daily?'daily '+todayKey():'run'} — window ${s.windows}/${TOTAL}, ${s.glass} glass, ${s.clean} flawless. ${location.href.split('#')[0]}`;try{if(navigator.share)await navigator.share({text:txt});else{await navigator.clipboard.writeText(txt);toast('Copied',900)}}catch(e){}};
+document.addEventListener('keydown',e=>{if(!run||run.over)return;if(e.key==='Escape'){const on=document.querySelector('.screen.on');on?hide():$('bMenu').click()}if((e.key==='z'||e.key==='Z')&&run.mode!=='duel'&&!document.querySelector('.screen.on'))undoLast()});
 </script>
 </body>
 </html>
