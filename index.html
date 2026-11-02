@@ -116,7 +116,7 @@ ul{padding-left:18px}
   <h3>Tips</h3>
   <ul>
     <li>Cells with a dark stud are <b>lead</b>. They belong to no pane.</li>
-    <li>A tap on one cell does nothing. Drag back over a cell to remove it from the cut.</li>
+    <li>A tap on one cell does nothing. The cut stops growing once it reaches the rule's size, so you can't overshoot. To abandon a cut, slide your finger off the window before lifting.</li>
     <li>Undo is cheap. Empties are not. Lift a bad pane rather than fire around it.</li>
   </ul>
   <button class="btn ghost" data-close>Back</button>
@@ -567,7 +567,9 @@ function layout(){
   const oy=head+arch+Math.floor(Math.min(floorH,40)*0.1);
   return{cell,ox,oy,gw,gh,head,arch,floorY:oy+gh+12,floorH:CH-bar-(oy+gh+12)-4};
 }
-function cellAt(px,py){const L=layout();const x=Math.floor((px-L.ox)/L.cell),y=Math.floor((py-L.oy)/L.cell);if(x<0||y<0||x>=W()||y>=H())return-1;return y*W()+x}
+function cellAt(px,py,inner){const L=layout();const fx=(px-L.ox)/L.cell,fy=(py-L.oy)/L.cell;const x=Math.floor(fx),y=Math.floor(fy);if(x<0||y<0||x>=W()||y>=H())return-1;
+  if(inner){const dx=fx-x,dy=fy-y;const m=.16;if(dx<m||dx>1-m||dy<m||dy>1-m)return-2}return y*W()+x}
+function cutCap(){const win=run.win;let cap=Infinity;for(const r of win.rules){if(r.type==='shape')cap=Math.min(cap,SHAPES[r.shape].cells.length);if(r.type==='area')cap=Math.min(cap,Math.max(...r.sizes))}return cap===Infinity?Infinity:cap+(has('slack')?1:0)}
 function cellCenter(i,L){return[L.ox+(i%W()+.5)*L.cell,L.oy+((i/W()|0)+.5)*L.cell]}
 function roundRect(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath()}
 function drawGilt(c,x,y,r){c.save();c.shadowColor='rgba(255,215,120,.95)';c.shadowBlur=r;c.fillStyle='#ffe9a8';c.beginPath();for(let k=0;k<8;k++){const a=k*Math.PI/4;const rr=k%2?r*.32:r;c.lineTo(x+Math.cos(a)*rr,y+Math.sin(a)*rr)}c.closePath();c.fill();c.shadowBlur=0;c.fillStyle='#b8831c';c.beginPath();c.arc(x,y,r*.18,0,7);c.fill();c.restore()}
@@ -731,7 +733,7 @@ function draw(now){
   if(path.length){ctx.fillStyle='rgba(255,241,216,.38)';for(const i of path){const x=L.ox+(i%w)*c,y=L.oy+(i/w|0)*c;ctx.fillRect(x+1,y+1,c-2,c-2)}
     ctx.strokeStyle='rgba(255,246,225,.95)';ctx.lineWidth=2.5;ctx.lineJoin='round';for(const i of path){const x=L.ox+(i%w)*c,y=L.oy+(i/w|0)*c;const nb=nbrs(i);const edge=(j,x1,y1,x2,y2)=>{if(!nb.includes(j)||!path.includes(j)){ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke()}};
       edge(i-1,x+1,y+1,x+1,y+c-1);edge(i+1,x+c-1,y+1,x+c-1,y+c-1);edge(i-w,x+1,y+1,x+c-1,y+1);edge(i+w,x+1,y+c-1,x+c-1,y+c-1)}
-    ctx.fillStyle='#fff6e4';ctx.font='bold 12px Georgia';ctx.textAlign='center';ctx.shadowColor='#000';ctx.shadowBlur=4;const[px,py]=cellCenter(path[path.length-1],L);ctx.fillText(path.length,px,py-c*.3);ctx.shadowBlur=0}
+    const full=path.length>=cutCap();ctx.fillStyle=full?'#ffd56a':'#fff6e4';ctx.font='bold '+(full?14:12)+'px Georgia';ctx.textAlign='center';ctx.shadowColor='#000';ctx.shadowBlur=4;const[px,py]=cellCenter(path[path.length-1],L);ctx.fillText(full?path.length+' ✓':path.length,px,py-c*.3);ctx.shadowBlur=0}
   // particles & motes
   drawMotes(now,L);
   parts=parts.filter(p=>now-p.t<p.life);
@@ -759,12 +761,12 @@ function drawMotes(now,L){
 resize();requestAnimationFrame(draw);
 
 // ───────────────────────── input ─────────────────────────
-let dragging=false;
+let dragging=false,capNudged=false,lastPtr=null;
 function addCell(i){
   const win=run.win,cell=win.cells[i];
-  if(path.length&&path[path.length-1]===i)return;
-  if(path.length>1&&path[path.length-2]===i){path.pop();return}
   if(path.includes(i))return;
+  const cap=cutCap();
+  if(path.length>=cap){if(!capNudged){capNudged=true;toast('Pane is full — lift to set, slide off the window to cancel',1100)}return}
   const touches=j=>path.some(p=>nbrs(p).includes(j));
   if(cell.s==='lead'){if(!cell.vis&&path.length&&touches(i)){cell.vis=true;hitLead=true;path.push(i);dirty=true}return}
   if(cell.s!=='free')return;
@@ -772,15 +774,18 @@ function addCell(i){
   if(touches(i)){path.push(i);return}
   const prev=new Map([[i,-1]]);const q=[i];let hit=-1;
   while(q.length&&hit<0){const cur=q.shift();for(const n of nbrs(cur)){if(prev.has(n))continue;const cs=win.cells[n];if(cs.s!=='free'||path.includes(n))continue;prev.set(n,cur);if(touches(n)){hit=n;break}q.push(n)}if(prev.size>40)break}
-  if(hit<0)return;const chain=[];let cur=hit;while(cur!==-1){chain.push(cur);cur=prev.get(cur)}if(chain.length>4)return;chain.forEach(c=>path.push(c));
+  if(hit<0)return;const chain=[];let cur=hit;while(cur!==-1){chain.push(cur);cur=prev.get(cur)}if(chain.length>4||path.length+chain.length>cap)return;chain.forEach(c=>path.push(c));
 }
 cv.addEventListener('pointerdown',e=>{
   if(!run||run.phase!=='play')return;
   const i=cellAt(e.clientX,e.clientY);if(i<0)return;
-  dragging=true;try{cv.setPointerCapture(e.pointerId)}catch(err){}path=[];hitLead=false;addCell(i);
+  dragging=true;capNudged=false;lastPtr=[e.clientX,e.clientY];try{cv.setPointerCapture(e.pointerId)}catch(err){}path=[];hitLead=false;addCell(i);
 });
-cv.addEventListener('pointermove',e=>{if(!dragging||!run||run.phase!=='play')return;const i=cellAt(e.clientX,e.clientY);if(i>=0)addCell(i)});
-const endDrag=()=>{if(!dragging)return;dragging=false;if(run&&run.win)commitPath();hitLead=false;if(run)updateBar()};
+cv.addEventListener('pointermove',e=>{if(!dragging||!run||run.phase!=='play')return;lastPtr=[e.clientX,e.clientY];const i=cellAt(e.clientX,e.clientY,true);if(i>=0)addCell(i)});
+const endDrag=e=>{if(!dragging)return;dragging=false;
+  const pt=e&&e.type==='pointerup'?[e.clientX,e.clientY]:lastPtr;
+  if(run&&run.win&&pt&&cellAt(pt[0],pt[1])===-1&&path.length){path=[];hitLead=false;toast('Cut cancelled',700);return}
+  if(run&&run.win)commitPath();hitLead=false;if(run)updateBar()};
 cv.addEventListener('pointerup',endDrag);cv.addEventListener('pointercancel',endDrag);
 
 
