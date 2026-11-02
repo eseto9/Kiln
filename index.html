@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#120b08">
+<title>KILN — forty windows of stained glass</title>
+<style>
+:root{--bg:#120b08;--panel:rgba(26,17,12,.92);--line:rgba(255,196,120,.18);--amber:#ffb347;--gold:#f1d28a;--text:#f4e9d6;--dim:#b39a7c;--red:#e5533d;--blue:#4f9ad6}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:Georgia,"Times New Roman",serif;overflow:hidden;overscroll-behavior:none}
+body{touch-action:none;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
+#c{position:fixed;inset:0;width:100vw;height:100vh;display:block;touch-action:none}
+#bar{position:fixed;left:0;right:0;bottom:0;z-index:4;display:none;gap:8px;justify-content:center;padding:10px 12px max(12px,env(safe-area-inset-bottom));background:linear-gradient(180deg,rgba(18,11,8,0),rgba(18,11,8,.95) 40%)}
+#bar.on{display:flex}
+button{font:inherit;color:inherit}
+.btn{display:block;width:100%;padding:13px 16px;margin:8px 0;font-size:15px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;border-radius:12px;border:1px solid rgba(255,179,71,.35);background:linear-gradient(180deg,rgba(255,179,71,.16),rgba(255,179,71,.04));cursor:pointer;transition:transform .12s,box-shadow .2s,border-color .2s}
+.btn:hover,.btn:focus{outline:none;border-color:var(--amber);box-shadow:0 0 22px rgba(255,179,71,.3)}
+.btn:active{transform:scale(.98)}
+.btn.small{display:inline-block;width:auto;padding:10px 14px;font-size:12px;margin:0}
+.btn.ghost{border-color:rgba(255,255,255,.14);background:rgba(255,255,255,.04)}
+.btn.fire{border-color:rgba(229,83,61,.6);background:linear-gradient(180deg,rgba(229,83,61,.35),rgba(229,83,61,.1))}
+.btn.sel{border-color:var(--gold);background:rgba(241,210,138,.25)}
+.btn:disabled{opacity:.35;pointer-events:none}
+.screen{position:fixed;inset:0;z-index:5;display:none;flex-direction:column;align-items:center;padding:max(16px,env(safe-area-inset-top)) 16px max(16px,env(safe-area-inset-bottom));overflow-y:auto;touch-action:pan-y;background:rgba(18,11,8,.72);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.screen.on{display:flex;animation:fadeIn .3s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:22px 20px 18px;width:100%;max-width:460px;margin:auto;box-shadow:0 20px 80px rgba(0,0,0,.6)}
+h1.logo{font-size:clamp(54px,14vw,110px);font-weight:400;letter-spacing:.3em;margin-right:-.3em;text-align:center;color:#fff1d8;text-shadow:0 0 16px rgba(255,179,71,.9),0 0 60px rgba(229,83,61,.6)}
+.tag{color:var(--dim);letter-spacing:.28em;text-transform:uppercase;font-size:11px;margin:6px 0 24px;text-align:center}
+h2{font-weight:400;letter-spacing:.18em;text-transform:uppercase;font-size:20px;text-align:center;margin-bottom:10px;color:#fff3d6}
+h3{font-weight:400;font-size:15px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);margin:14px 0 6px}
+p,li{line-height:1.5;color:#e2d5c0;font-size:14px}
+ul{padding-left:18px}
+.dim{color:var(--dim)}
+.center{text-align:center}
+.menu{width:100%;max-width:300px;margin:0 auto}
+.row{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:12px}
+.row .btn{flex:1 1 120px;width:auto;margin:0}
+.cards{display:grid;gap:10px;margin:12px 0}
+.card{position:relative;border-radius:14px;padding:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);cursor:pointer;transition:border-color .2s,box-shadow .2s,transform .12s}
+.card:hover,.card:focus{border-color:var(--amber);box-shadow:0 0 18px rgba(255,179,71,.25)}
+.card:active{transform:scale(.985)}
+.card .nm{font-weight:700;font-size:16px;letter-spacing:.04em;padding-right:80px}
+.card .tier{position:absolute;top:12px;right:12px;font-size:10px;letter-spacing:.2em;text-transform:uppercase}
+.card .ds{font-size:13px;color:#d6c7ad;margin-top:4px;line-height:1.45}
+.card.t0 .tier{color:#9fb7c9}.card.t1 .tier{color:#8fd1ff}.card.t2 .tier{color:var(--amber)}
+.card.t2{border-color:rgba(255,179,71,.45)}
+.card.locked{opacity:.45;cursor:default}
+.card.locked:hover{border-color:rgba(255,255,255,.1);box-shadow:none}
+.card.chosen{border-color:var(--gold);box-shadow:0 0 18px rgba(241,210,138,.35)}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;margin:12px 0;font-size:13px}
+.stats b{color:var(--gold);font-weight:400}
+.best{margin-top:14px;color:var(--dim);font-size:11px;letter-spacing:.12em;text-align:center;line-height:1.8;text-transform:uppercase}
+.toast{position:fixed;left:50%;top:14%;transform:translateX(-50%);z-index:6;background:rgba(26,17,12,.95);border:1px solid var(--gold);border-radius:12px;padding:10px 16px;font-size:14px;letter-spacing:.06em;color:var(--gold);pointer-events:none;opacity:0;transition:opacity .25s;max-width:90vw;text-align:center}
+.toast.on{opacity:1}
+.boonlist{font-size:13px;line-height:1.6}
+.boonlist span{color:var(--gold)}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="bar">
+  <button class="btn small ghost" id="bBoons">Boons</button>
+  <button class="btn small ghost hidden" id="bReclaim">Reclaim</button>
+  <button class="btn small ghost hidden" id="bAnneal">Anneal</button>
+  <button class="btn small fire" id="bFire">Fire</button>
+  <button class="btn small ghost" id="bMenu">≡</button>
+</div>
+
+<div class="screen on" id="sTitle">
+  <div style="margin:auto;width:100%;display:flex;flex-direction:column;align-items:center">
+    <h1 class="logo">KILN</h1>
+    <div class="tag">forty windows of stained glass</div>
+    <div class="menu">
+      <button class="btn" id="bRun">New run</button>
+      <button class="btn" id="bDaily">Daily window</button>
+      <button class="btn ghost" id="bRelics">Relics</button>
+      <button class="btn ghost" id="bHelp">How to play</button>
+    </div>
+    <div class="best" id="titleBest"></div>
+  </div>
+</div>
+
+<div class="screen" id="sHelp"><div class="panel">
+  <h2>How to play</h2>
+  <p>Each window is a grid of empty glass. <b>Drag</b> across cells to cut a pane. Let go and the pane either <b>sets</b> in colour, or <b>cracks</b>.</p>
+  <h3>The rules</h3>
+  <p>Every window states its rule at the top. A pane only sets if it obeys <i>every</i> rule shown.</p>
+  <ul>
+    <li><b>Shape</b> — every pane must be the shape shown. Rotated or mirrored both count.</li>
+    <li><b>Cells</b> — every pane must have exactly that many cells.</li>
+    <li><b>Gem</b> — every pane must hold exactly one gem.</li>
+    <li><b>Frame</b> — every pane must touch the outer frame.</li>
+    <li><b>Dark</b> windows hide gems and lead until glass is set beside them. Cut into hidden lead and the pane cracks.</li>
+  </ul>
+  <h3>Heat</h3>
+  <p>The kiln bar at the top is your life. Cracks heat it (<b>+5 per cell</b>). Setting glass cools it (<b>−1 per cell</b>). When the window is full, it fires. Fire early with cells left and each one heats the kiln (<b>+4</b>), and every cracked cell costs <b>+2</b> more. A window with no cracks cools <b>−8</b> extra. Heat carries across all forty windows. If it ever reaches the top, the glass shatters and the run ends.</p>
+  <h3>Boons and cathedrals</h3>
+  <p>After every window, draft one of three boons. They stack for the whole run and some pairs unlock a <b>synergy</b>. Every fifth window is a cathedral window: bigger, two rules at once. Clear it and its <b>relic</b> is yours for every run after.</p>
+  <h3>Tips</h3>
+  <ul>
+    <li>Dark cells with a dot are <b>lead</b>. They belong to no pane and cannot be cut.</li>
+    <li>A tap on one cell does nothing. Drag back over your last cell to undo it.</li>
+    <li>Leaving one awkward cell empty is usually cheaper than cracking four.</li>
+  </ul>
+  <button class="btn ghost" data-close>Back</button>
+</div></div>
+
+<div class="screen" id="sRelics"><div class="panel">
+  <h2>Relics</h2>
+  <p class="center dim">One relic from a cleared cathedral window may be carried into each run.</p>
+  <div class="cards" id="relicCards"></div>
+  <button class="btn ghost" data-close>Back</button>
+</div></div>
+
+<div class="screen" id="sRelicPick"><div class="panel">
+  <h2>Choose a relic</h2>
+  <p class="center dim">Carried for this whole run. Or go in bare.</p>
+  <div class="cards" id="relicPickCards"></div>
+  <button class="btn ghost" id="bNoRelic">No relic</button>
+</div></div>
+
+<div class="screen" id="sDraft"><div class="panel">
+  <h2 id="draftTitle">Window fired</h2>
+  <p class="center dim" id="draftSub">Choose a boon.</p>
+  <div class="cards" id="draftCards"></div>
+</div></div>
+
+<div class="screen" id="sRelicWon"><div class="panel">
+  <h2>Cathedral cleared</h2>
+  <div class="cards" id="relicWonCard"></div>
+  <p class="center dim">This relic is unlocked for future runs.</p>
+  <button class="btn" id="bRelicOk">Continue</button>
+</div></div>
+
+<div class="screen" id="sBoons"><div class="panel">
+  <h2>Your boons</h2>
+  <div class="boonlist" id="boonList"></div>
+  <button class="btn ghost" data-close>Back</button>
+</div></div>
+
+<div class="screen" id="sPause"><div class="panel">
+  <h2>Paused</h2>
+  <div class="row">
+    <button class="btn" data-close>Resume</button>
+    <button class="btn ghost" id="bMute">Sound: on</button>
+  </div>
+  <button class="btn ghost" id="bHelp2" style="margin-top:14px">How to play</button>
+  <button class="btn ghost" id="bQuit">Abandon run</button>
+</div></div>
+
+<div class="screen" id="sConfirm"><div class="panel">
+  <h2 id="confTitle">Fire?</h2>
+  <p class="center" id="confText"></p>
+  <div class="row">
+    <button class="btn fire" id="bConfYes">Yes</button>
+    <button class="btn ghost" data-close>No</button>
+  </div>
+</div></div>
+
+<div class="screen" id="sOver"><div class="panel">
+  <h2 id="overTitle">Shattered</h2>
+  <p class="center" id="overText"></p>
+  <div class="stats" id="overStats"></div>
+  <div class="row">
+    <button class="btn" id="bAgain">New run</button>
+    <button class="btn ghost" id="bShare">Share</button>
+    <button class="btn ghost" id="bToTitle">Title</button>
+  </div>
+</div></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+// ───────────────────────── storage ─────────────────────────
+const Store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+const SAVE=Object.assign({relics:[],best:{windows:0,glass:0},daily:{},runs:0,glass:0,muted:false},Store.get('kiln',{}));
+const save=()=>Store.set('kiln',SAVE);
+
+// ───────────────────────── rng ─────────────────────────
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function hashStr(s){let h=1779033703^s.length;for(let i=0;i<s.length;i++){h=Math.imul(h^s.charCodeAt(i),3432918353);h=h<<13|h>>>19}return h>>>0}
+let rng=Math.random;
+const rand=n=>Math.floor(rng()*n);
+const pick=a=>a[rand(a.length)];
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=rand(i+1);[a[i],a[j]]=[a[j],a[i]]}return a}
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+
+// ───────────────────────── shapes ─────────────────────────
+const SHAPES={
+  I2:{name:'domino',cells:[[0,0],[1,0]]},
+  L3:{name:'corner',cells:[[0,0],[1,0],[0,1]]},
+  I3:{name:'bar',cells:[[0,0],[1,0],[2,0]]},
+  O4:{name:'square',cells:[[0,0],[1,0],[0,1],[1,1]]},
+  T4:{name:'tee',cells:[[0,0],[1,0],[2,0],[1,1]]},
+  L4:{name:'ell',cells:[[0,0],[0,1],[0,2],[1,2]]},
+  S4:{name:'skew',cells:[[1,0],[2,0],[0,1],[1,1]]},
+  I4:{name:'rod',cells:[[0,0],[1,0],[2,0],[3,0]]},
+  P5:{name:'pea',cells:[[0,0],[1,0],[0,1],[1,1],[0,2]]},
+  L5:{name:'long ell',cells:[[0,0],[0,1],[0,2],[0,3],[1,3]]},
+  U5:{name:'cup',cells:[[0,0],[2,0],[0,1],[1,1],[2,1]]},
+  T5:{name:'big tee',cells:[[0,0],[1,0],[2,0],[1,1],[1,2]]},
+  Z5:{name:'zed',cells:[[0,0],[1,0],[1,1],[1,2],[2,2]]},
+};
+function normalize(c){const mx=Math.min(...c.map(p=>p[0])),my=Math.min(...c.map(p=>p[1]));return c.map(p=>[p[0]-mx,p[1]-my]).sort((a,b)=>a[0]-b[0]||a[1]-b[1])}
+const keyOf=c=>normalize(c).map(p=>p.join(',')).join(';');
+function orientations(cells,mirror){const m=new Map();let cur=cells;for(let r=0;r<4;r++){cur=cur.map(([x,y])=>[-y,x]);m.set(keyOf(cur),normalize(cur));if(mirror){const f=cur.map(([x,y])=>[-x,y]);m.set(keyOf(f),normalize(f))}}return[...m.values()]}
+const ORI={};
+function shapeKeys(id){if(!ORI[id])ORI[id]=new Set(orientations(SHAPES[id].cells,true).map(keyOf));return ORI[id]}
+function connected(pts){if(!pts.length)return false;const s=new Set(pts.map(p=>p.join(',')));const seen=new Set([pts[0].join(',')]);const st=[pts[0]];while(st.length){const[x,y]=st.pop();for(const[dx,dy]of[[1,0],[-1,0],[0,1],[0,-1]]){const k=(x+dx)+','+(y+dy);if(s.has(k)&&!seen.has(k)){seen.add(k);st.push([x+dx,y+dy])}}}return seen.size===pts.length}
+
+// ───────────────────────── generators ─────────────────────────
+function tileShape(w,h,shapeId,leadBudget,blocked,frame){
+  const oris=orientations(SHAPES[shapeId].cells,true).map(o=>{const s=[...o].sort((a,b)=>a[1]-b[1]||a[0]-b[0]);const[ax,ay]=s[0];return s.map(([x,y])=>[x-ax,y-ay])});
+  const occ=new Int8Array(w*h);for(const b of blocked)occ[b]=1;
+  const parts=[],leads=[];let nodes=0;
+  function rec(){
+    if(++nodes>60000)return false;
+    let first=-1;for(let i=0;i<w*h;i++)if(!occ[i]){first=i;break}
+    if(first<0)return true;
+    const fx=first%w,fy=(first/w)|0;
+    for(const o of shuffle([...oris])){
+      const idx=[];let ok=true,border=false;
+      for(const[dx,dy]of o){const x=fx+dx,y=fy+dy;if(x<0||x>=w||y>=h||occ[y*w+x]){ok=false;break}if(x===0||y===0||x===w-1||y===h-1)border=true;idx.push(y*w+x)}
+      if(!ok||(frame&&!border))continue;
+      for(const i of idx)occ[i]=1;parts.push(idx);
+      if(rec())return true;
+      parts.pop();for(const i of idx)occ[i]=0;
+    }
+    if(leads.length<leadBudget){occ[first]=1;leads.push(first);if(rec())return true;leads.pop();occ[first]=0}
+    return false;
+  }
+  return rec()?{parts,leads:[...blocked,...leads]}:null;
+}
+function growPartition(w,h,{sizes=null,border=false,leadBudget=3,blocked=new Set()}){
+  const occ=new Int8Array(w*h);for(const b of blocked)occ[b]=1;
+  const parts=[],leads=[...blocked];
+  const nb=i=>{const x=i%w,y=(i/w)|0,r=[];if(x>0)r.push(i-1);if(x<w-1)r.push(i+1);if(y>0)r.push(i-w);if(y<h-1)r.push(i+w);return r};
+  const isB=i=>{const x=i%w,y=(i/w)|0;return x===0||y===0||x===w-1||y===h-1};
+  const depth=i=>{const x=i%w,y=(i/w)|0;return Math.min(x,y,w-1-x,h-1-y)};
+  for(let guard=0;guard<w*h;guard++){
+    let seed=-1;
+    if(border){for(let i=0;i<w*h;i++)if(!occ[i]&&isB(i)){seed=i;break}}
+    if(seed<0)for(let i=0;i<w*h;i++)if(!occ[i]){seed=i;break}
+    if(seed<0)break;
+    const target=sizes?pick(sizes):3+rand(4);
+    const reg=[seed];occ[seed]=1;
+    while(reg.length<target){
+      const fr=[];for(const c of reg)for(const n of nb(c))if(!occ[n])fr.push(n);if(!fr.length)break;
+      let n;
+      if(border&&rng()<.7){const dmax=Math.max(...fr.map(depth));n=pick(fr.filter(f=>depth(f)===dmax))}else n=pick(fr);
+      occ[n]=1;reg.push(n)}
+    const okSize=sizes?sizes.includes(reg.length):reg.length>=2;
+    const okB=!border||reg.some(isB);
+    if(okSize&&okB)parts.push(reg);
+    else if(!sizes){const adj=parts.find(p=>p.some(c=>reg.some(r=>nb(c).includes(r))));if(adj)adj.push(...reg);else leads.push(...reg)}
+    else leads.push(...reg);
+    if(leads.length>leadBudget)return null;
+  }
+  return{parts,leads};
+}
+const isBorder=(i,w,h)=>{const x=i%w,y=(i/w)|0;return x===0||y===0||x===w-1||y===h-1};
+function makeWindow(spec){
+  const{w,h,dark}=spec;let rules=spec.rules.slice();
+  for(let attempt=0;attempt<3;attempt++){
+    const shapeR=rules.find(r=>r.type==='shape'),areaR=rules.find(r=>r.type==='area');
+    const frame=rules.some(r=>r.type==='frame'),gem=rules.some(r=>r.type==='gem');
+    let best=null;
+    // frame windows get a lead core so every cell sits within 2 of the frame
+    const core=[];if(frame)for(let i=0;i<w*h;i++){const x=i%w,y=(i/w)|0;if(Math.min(x,y,w-1-x,h-1-y)>=3)core.push(i)}
+    for(let t=0;t<150&&!best;t++){
+      const blocked=new Set(core);const nb=rand(spec.leadMax+1);let g=0;while(blocked.size<core.length+nb&&g++<50){const c=rand(w*h);if(!core.includes(c))blocked.add(c)}
+      const budget=Math.ceil(w*h*0.1)+(frame?3:0);
+      const res=shapeR?tileShape(w,h,shapeR.shape,budget,blocked,frame):growPartition(w,h,{sizes:areaR?areaR.sizes:null,border:frame,leadBudget:core.length+budget,blocked});
+      if(!res||res.parts.length<2)continue;
+      if(frame&&!res.parts.every(p=>p.some(i=>isBorder(i,w,h))))continue;
+      best=res;
+    }
+    if(best){
+      // random symmetry of the square so lead cells don't cluster where the tiler started
+      if(w===h){const k=rand(8);const T=i=>{let x=i%w,y=(i/w)|0;if(k&1)x=w-1-x;if(k&2)y=h-1-y;if(k&4)[x,y]=[y,x];return y*w+x};best={parts:best.parts.map(p=>p.map(T)),leads:best.leads.map(T)}}
+      const cells=[];for(let i=0;i<w*h;i++)cells.push({s:'free',r:-1,gem:false,vis:!dark||isBorder(i,w,h)});
+      for(const l of best.leads)cells[l].s='lead';
+      if(gem)for(const p of best.parts)cells[pick(p)].gem=true;
+      return{w,h,rules,dark,cells,parts:best.parts,regions:[],name:spec.name||null,cathedral:!!spec.cathedral};
+    }
+    // relax: drop frame, then fall back to a simple area rule
+    console.warn('kiln: relaxing window rules',JSON.stringify(rules));
+    if(rules.some(r=>r.type==='frame'))rules=rules.filter(r=>r.type!=='frame');
+    else rules=[{type:'area',sizes:[4]}];
+  }
+  return makeWindow({w:5,h:5,rules:[{type:'shape',shape:'L3'}],leadMax:1,dark:false});
+}
+
+// ───────────────────────── run spec ─────────────────────────
+const CATHEDRALS={
+  5:{name:'The Rose',rules:[{type:'shape'},{type:'gem'}]},
+  10:{name:'The Triptych',rules:[{type:'area'},{type:'frame'}]},
+  15:{name:'The Spire',rules:[{type:'shape'},{type:'frame'}]},
+  20:{name:'The Vigil',rules:[{type:'shape'}],dark:true},
+  25:{name:'The Choir',rules:[{type:'area2'},{type:'gem'}]},
+  30:{name:'The Crypt',rules:[{type:'area'},{type:'frame'}],dark:true},
+  35:{name:'The Apse',rules:[{type:'shape'},{type:'gem'},{type:'frame'}]},
+  40:{name:'The Great Window',rules:[{type:'shape'},{type:'gem'},{type:'frame'}],dark:true},
+};
+function specFor(n){
+  const size=n<=4?5:n<=9?6:n<=15?7:n<=26?8:9;
+  const shapes=(n<=5?['L3','I3','L3','I2']:n<=14?['L3','T4','L4','O4','I4']:n<=27?['T4','L4','P5','L5','I4']:['P5','L5','T4','L4','P5']).filter(s=>s!=='O4'||size%2===0);
+  const areas=n<=8?[3,4]:n<=18?[4,5,6]:[5,6,7,8];
+  const cat=CATHEDRALS[n];
+  const leadMax=n<=4?1:n<=15?2:3;
+  const fill=r=>{
+    if(r.type==='shape')return{type:'shape',shape:pick(shapes)};
+    if(r.type==='area')return{type:'area',sizes:[pick(areas)]};
+    if(r.type==='area2'){const a=pick(areas);const b=a+1+rand(2);return{type:'area',sizes:[a,b]}}
+    return r;
+  };
+  if(cat)return{w:size+(n>=20?0:1),h:size+(n>=20?0:1),rules:cat.rules.map(fill),dark:!!cat.dark,leadMax,name:cat.name,cathedral:true};
+  let rule;
+  if(n<=2)rule={type:'shape',shape:n===1?'L3':'I3'};
+  else{const r=rng();rule=r<.45?{type:'shape'}:r<.7?{type:'area'}:r<.78?{type:'area2'}:r<.9?{type:'gem'}:{type:'frame'};rule=fill(rule)}
+  const dark=n>=22&&rng()<.15;
+  return{w:size,h:size,rules:[rule],dark,leadMax};
+}
+
+// ───────────────────────── boons & relics ─────────────────────────
+const BOONS=[
+  {id:'patience',tier:0,name:'Patience',desc:'The first crack of each window costs no heat.'},
+  {id:'tempered',tier:0,name:'Tempered',desc:'Cracks heat the kiln 3 per cell instead of 5.'},
+  {id:'thick',tier:0,name:'Thick Glass',desc:'+20 max heat.',stack:true},
+  {id:'spare',tier:0,name:'Spare Pane',desc:'Once per window, an invalid pane dissolves instead of cracking.'},
+  {id:'breath',tier:0,name:'Breath',desc:'Cool the kiln by 20, right now.',instant:true},
+  {id:'slack',tier:1,name:'Slack',desc:'A pane one cell too big still sets (shape and cell-count rules).'},
+  {id:'quench',tier:1,name:'Quench',desc:'Setting glass cools the kiln twice as fast.'},
+  {id:'reclaim',tier:1,name:'Reclaim',desc:'Once per window, tap a cracked cell to restore it.'},
+  {id:'blueprint',tier:1,name:'Blueprint',desc:'The first pane of every window is set for you.'},
+  {id:'coldstart',tier:1,name:'Cold Start',desc:'Each window begins by cooling the kiln 10.'},
+  {id:'lantern',tier:1,name:'Lantern',desc:'Dark windows reveal everything within 2 cells of set glass.'},
+  {id:'anneal',tier:2,name:'Annealing',desc:'Once per run, shatter the window on purpose and start it fresh with the heat it began at.'},
+  {id:'leadcame',tier:2,name:'Lead Came',desc:'Cracked cells cost nothing when you fire, and cracking costs 2 per cell.'},
+];
+const SYNERGIES=[
+  {id:'freeform',needs:['spare','slack'],name:'Freeform',desc:'Any pane with the right number of cells passes a shape rule.'},
+  {id:'mend',needs:['reclaim','leadcame'],name:'Mend',desc:'Reclaim works twice per window.'},
+  {id:'frost',needs:['quench','coldstart'],name:'Frost',desc:'Windows begin by cooling the kiln 20.'},
+  {id:'brick',needs:['tempered','thick'],name:'Furnace Brick',desc:'A single crack never heats the kiln more than 9.'},
+];
+const RELICS=[
+  {id:'rose',win:5,name:'Rose Shard',desc:'Start each run with +15 max heat.'},
+  {id:'triptych',win:10,name:'Triptych Hinge',desc:'Boon drafts offer four choices.'},
+  {id:'spire',win:15,name:'Spire Key',desc:'Start with the Spare Pane boon.'},
+  {id:'vigil',win:20,name:'Vigil Candle',desc:'Dark windows reveal 2 cells around set glass.'},
+  {id:'choir',win:25,name:'Choir Bell',desc:'Crack-free windows cool 10 extra.'},
+  {id:'crypt',win:30,name:'Crypt Lead',desc:'Firing early costs 2 per empty cell instead of 4.'},
+  {id:'apse',win:35,name:'Apse Prism',desc:'Start with a random Rare boon.'},
+  {id:'great',win:40,name:'The Great Pane',desc:'Start the run with Annealing.'},
+];
+const byId=(arr,id)=>arr.find(x=>x.id===id);
+
+// ───────────────────────── run state ─────────────────────────
+const TOTAL=40;
+let run=null;
+const has=id=>!!run&&(run.boons[id]||0)>0;
+const syn=id=>!!run&&SYNERGIES.find(s=>s.id===id).needs.every(has);
+const relic=id=>!!run&&run.relic===id;
+function newRun(daily){
+  const seed=daily?hashStr('kiln-'+todayKey()):(Math.random()*2**32)>>>0;
+  rng=mulberry32(seed);
+  run={daily,seed,n:1,heat:0,max:100,boons:{},relic:null,win:null,usedSpare:false,reclaimLeft:0,annealLeft:0,annealSpent:false,windowStartHeat:0,cracksThisWindow:0,
+       stats:{glass:0,cracks:0,windows:0,peak:0,clean:0},over:false,phase:'play'};
+  SAVE.runs++;save();
+}
+function applyRelic(){
+  if(relic('rose'))run.max+=15;
+  if(relic('spire'))run.boons.spare=1;
+  if(relic('great'))run.annealLeft=1;
+  if(relic('apse')){const r=pick(BOONS.filter(b=>b.tier===1));run.boons[r.id]=1}
+}
+function startWindow(){
+  const spec=specFor(run.n);
+  const win=makeWindow(spec);
+  run.win=win;run.usedSpare=false;run.reclaimLeft=has('reclaim')?(syn('mend')?2:1):0;run.windowStartHeat=run.heat;run.cracksThisWindow=0;run.patienceUsed=false;
+  if(has('coldstart'))cool(syn('frost')?20:10);
+  if(has('blueprint')){const p=pick(win.parts);setRegion(p,true)}
+  revealDark();
+  path=[];fx=[];shake=0;reclaimMode=false;run.phase='play';
+  updateBar();toastRule();
+}
+function toastRule(){const w=run.win;if(w.name)toast((w.cathedral?'Cathedral · ':'')+w.name+(w.dark?' · dark':''),1600);else if(w.dark)toast('A dark window',1400)}
+
+// heat
+const heatCrackPer=()=>has('leadcame')?2:has('tempered')?3:5;
+function heatUp(v){run.heat=clamp(run.heat+v,0,run.max);run.stats.peak=Math.max(run.stats.peak,run.heat);if(run.heat>=run.max)shatter()}
+function cool(v){run.heat=clamp(run.heat-v,0,run.max)}
+
+// cells
+const W=()=>run.win.w,H=()=>run.win.h;
+const nbrs=i=>{const w=W(),h=H(),x=i%w,y=(i/w)|0,r=[];if(x>0)r.push(i-1);if(x<w-1)r.push(i+1);if(y>0)r.push(i-w);if(y<h-1)r.push(i+w);return r};
+const PALETTE=['#d9443b','#e3862c','#e6c04b','#55a35a','#3f8fd1','#7257c6','#c9528f','#2aa39b'];
+function setRegion(idxs,silent){
+  const win=run.win;const id=win.regions.length;
+  const nbCols=new Set();for(const i of idxs)for(const n of nbrs(i)){const c=win.cells[n];if(c.s==='set')nbCols.add(win.regions[c.r].col)}
+  const used=win.regions.map(r=>r.col);
+  const prefer=PALETTE.filter(c=>!nbCols.has(c)).sort((a,b)=>used.filter(u=>u===a).length-used.filter(u=>u===b).length);
+  const col=prefer.length?prefer[0]:PALETTE[id%PALETTE.length];
+  win.regions.push({cells:idxs,col,t:performance.now()});
+  for(const i of idxs){win.cells[i].s='set';win.cells[i].r=id}
+  if(!silent){run.stats.glass+=idxs.length;SAVE.glass+=idxs.length;cool(idxs.length*(has('quench')?2:1));sfx('set',idxs.length)}
+  revealDark();
+}
+function crackCells(idxs){
+  const win=run.win;let n=0;for(const i of idxs)if(win.cells[i].s==='free'){win.cells[i].s='crack';n++}
+  run.stats.cracks+=n;run.cracksThisWindow+=n;
+  let v=n*heatCrackPer();if(syn('brick'))v=Math.min(v,9);if(has('patience')&&!run.patienceUsed){run.patienceUsed=true;v=0;toast('Patience: no heat',900)}
+  shake=1;sfx('crack');fx.push({type:'crack',cells:idxs,t:performance.now()});
+  revealDark();heatUp(v);
+}
+function revealDark(){
+  const win=run.win;if(!win.dark)return;
+  const R=(has('lantern')||relic('vigil'))?2:1;const w=W(),h=H();
+  for(let i=0;i<w*h;i++){const c=win.cells[i];if(c.s==='set'||c.s==='crack'){c.vis=true;const x=i%w,y=(i/w)|0;for(let dy=-R;dy<=R;dy++)for(let dx=-R;dx<=R;dx++){if(Math.abs(dx)+Math.abs(dy)>R)continue;const X=x+dx,Y=y+dy;if(X>=0&&X<w&&Y>=0&&Y<h)win.cells[Y*w+X].vis=true}}}
+}
+function validate(idxs){
+  const win=run.win,w=W();const pts=idxs.map(i=>[i%w,(i/w)|0]);const size=idxs.length;const reasons=[];
+  for(const r of win.rules){
+    if(r.type==='shape'){
+      const sh=SHAPES[r.shape];const want=sh.cells.length;
+      let ok=size===want&&shapeKeys(r.shape).has(keyOf(pts));
+      if(!ok&&has('slack')&&size===want+1)ok=pts.some((_,k)=>{const sub=pts.filter((_,j)=>j!==k);return connected(sub)&&shapeKeys(r.shape).has(keyOf(sub))});
+      if(!ok&&syn('freeform')&&size===want)ok=true;
+      if(!ok)reasons.push(size!==want?'wrong size':'wrong shape');
+    }else if(r.type==='area'){
+      const ok=r.sizes.includes(size)||(has('slack')&&r.sizes.includes(size-1));
+      if(!ok)reasons.push('wrong size');
+    }else if(r.type==='frame'){if(!idxs.some(i=>isBorder(i,w,H())))reasons.push('not on the frame')}
+    else if(r.type==='gem'){const g=idxs.filter(i=>win.cells[i].gem).length;if(g!==1)reasons.push(g===0?'no gem':'two gems')}
+  }
+  return{ok:!reasons.length,reasons};
+}
+function commitPath(){
+  const p=path.slice();path=[];
+  if(p.length<2||run.phase!=='play')return;
+  if(hitLead){hitLead=false;crackCells(p);toast('Cut into lead',900);return}
+  const v=validate(p);
+  if(v.ok){setRegion(p);checkFull();return}
+  if(has('spare')&&!run.usedSpare){run.usedSpare=true;toast('Spare pane: '+v.reasons[0],1100);sfx('dissolve');return}
+  toast(v.reasons[0],900);crackCells(p);
+}
+function freeCount(){return run.win.cells.filter(c=>c.s==='free').length}
+function checkFull(){if(freeCount()===0&&run.phase==='play'){run.phase='firing';setTimeout(fireWindow,350)}}
+function fireWindow(){
+  if(run.over)return;run.phase='firing';
+  const win=run.win;const free=freeCount();const cracked=win.cells.filter(c=>c.s==='crack').length;
+  const v=free*(relic('crypt')?2:4)+(has('leadcame')?0:cracked*2);
+  let bonus=0;if(run.cracksThisWindow===0&&free===0){bonus=8+(relic('choir')?10:0);run.stats.clean++}
+  fx.push({type:'fire',t:performance.now(),flawless:bonus>0});sfx('fire');
+  if(v>0)heatUp(v);if(run.over)return;
+  cool(bonus);
+  run.stats.windows=run.n;updateBar();
+  setTimeout(()=>{
+    if(run.over)return;
+    if(run.win.cathedral){const r=RELICS.find(r=>r.win===run.n);if(r&&!SAVE.relics.includes(r.id)){SAVE.relics.push(r.id);save();showRelicWon(r);return}}
+    afterWindow();
+  },1000);
+}
+function afterWindow(){
+  if(run.n>=TOTAL){victory();return}
+  showDraft();
+}
+function nextWindow(){run.n++;startWindow()}
+function shatter(){
+  if(run.over)return;run.over=true;run.phase='over';sfx('shatter');shake=3;fx.push({type:'shatter',t:performance.now()});
+  recordRun();setTimeout(()=>showOver(false),1200);
+}
+function victory(){run.over=true;run.phase='over';recordRun();showOver(true)}
+function recordRun(){
+  const w=run.stats.windows;
+  if(w>SAVE.best.windows||(w===SAVE.best.windows&&run.stats.glass>SAVE.best.glass))SAVE.best={windows:w,glass:run.stats.glass};
+  if(run.daily){const k=todayKey();const d=SAVE.daily[k];if(!d||w>d.windows||(w===d.windows&&run.stats.peak<d.peak))SAVE.daily[k]={windows:w,peak:Math.round(run.stats.peak),glass:run.stats.glass}}
+  save();
+}
+function todayKey(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+
+// ───────────────────────── draft ─────────────────────────
+function offerBoons(){
+  const n=relic('triptych')?4:3;
+  const pool=BOONS.filter(b=>b.instant||b.stack||!has(b.id)).filter(b=>b.tier<2||run.n>=3).filter(b=>b.id!=='breath'||run.heat>=15);
+  const weight=b=>b.tier===0?6:b.tier===1?3:1;
+  const out=[];const p=[...pool];
+  while(out.length<n&&p.length){let tot=p.reduce((s,b)=>s+weight(b),0);let r=rng()*tot;let i=0;for(;i<p.length;i++){r-=weight(p[i]);if(r<=0)break}out.push(p.splice(Math.min(i,p.length-1),1)[0])}
+  return out;
+}
+function takeBoon(b){
+  if(b.instant){if(b.id==='breath')cool(20);return}
+  run.boons[b.id]=(run.boons[b.id]||0)+1;
+  if(b.id==='thick')run.max+=20;
+  if(b.id==='anneal'&&!run.annealSpent){run.annealLeft=1;run.annealSpent=true}
+  for(const s of SYNERGIES)if(s.needs.includes(b.id)&&syn(s.id))setTimeout(()=>toast('Synergy: '+s.name+' — '+s.desc,2600),400);
+}
+
+// ───────────────────────── canvas ─────────────────────────
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');
+let DPR=1,CW=0,CH=0;
+function resize(){DPR=Math.min(2,window.devicePixelRatio||1);CW=window.innerWidth;CH=window.innerHeight;cv.width=CW*DPR;cv.height=CH*DPR;cv.style.width=CW+'px';cv.style.height=CH+'px';ctx.setTransform(DPR,0,0,DPR,0,0)}
+window.addEventListener('resize',resize);resize();
+let path=[],hitLead=false,fx=[],shake=0,reclaimMode=false;
+function layout(){
+  const win=run.win;const top=76+win.rules.length*22;
+  const bottom=74;const pad=12;
+  const gw=CW-pad*2,gh=CH-top-bottom-pad;
+  const cell=Math.floor(Math.min(gw/win.w,gh/win.h));
+  const ox=Math.floor((CW-cell*win.w)/2),oy=top+Math.floor((gh-cell*win.h)/2);
+  return{cell,ox,oy,top};
+}
+function cellAt(px,py){const L=layout();const x=Math.floor((px-L.ox)/L.cell),y=Math.floor((py-L.oy)/L.cell);if(x<0||y<0||x>=W()||y>=H())return-1;return y*W()+x}
+function cellCenter(i,L){return[L.ox+(i%W()+.5)*L.cell,L.oy+((i/W()|0)+.5)*L.cell]}
+function crackLines(i,L){const w=W();const x0=L.ox+(i%w)*L.cell,y0=L.oy+(i/w|0)*L.cell;let s=hashStr('c'+i+W());const r=()=>{s=(s*1664525+1013904223)>>>0;return s/4294967296};const c=L.cell;ctx.strokeStyle='rgba(20,12,8,.75)';ctx.lineWidth=1.3;ctx.beginPath();const cx=x0+c*(.35+r()*.3),cy=y0+c*(.35+r()*.3);for(let k=0;k<3;k++){ctx.moveTo(cx,cy);let px=cx,py=cy;const ang=r()*Math.PI*2;for(let j=0;j<3;j++){px+=Math.cos(ang+(r()-.5))*c*.22;py+=Math.sin(ang+(r()-.5))*c*.22;ctx.lineTo(px,py)}}ctx.stroke()}
+function drawShapeIcon(x,y,shapeId,size,col){const cells=normalize(SHAPES[shapeId].cells);const bw=Math.max(...cells.map(c=>c[0]))+1,bh=Math.max(...cells.map(c=>c[1]))+1;const s=Math.min(size/bw,size/bh,9);const oy=y+(size-bh*s)/2;ctx.fillStyle=col;for(const[cx,cy]of cells){ctx.fillRect(x+cx*s+.5,oy+cy*s+.5,s-1,s-1)}return bw*s}
+function ruleText(r){if(r.type==='shape')return'Every pane is this shape';if(r.type==='area')return'Every pane has '+r.sizes.join(' or ')+' cells';if(r.type==='gem')return'Every pane holds one gem';if(r.type==='frame')return'Every pane touches the frame';return''}
+function draw(now){
+  requestAnimationFrame(draw);
+  ctx.clearRect(0,0,CW,CH);
+  const g=ctx.createRadialGradient(CW/2,CH*.35,20,CW/2,CH*.35,Math.max(CW,CH)*.8);g.addColorStop(0,'#241610');g.addColorStop(1,'#0d0806');ctx.fillStyle=g;ctx.fillRect(0,0,CW,CH);
+  if(!run||!run.win)return;
+  const win=run.win,L=layout(),c=L.cell,w=W(),h=H();
+  ctx.save();
+  if(shake>0){ctx.translate((Math.random()-.5)*shake*6,(Math.random()-.5)*shake*6);shake=Math.max(0,shake-.08)}
+  // header
+  ctx.textBaseline='middle';ctx.textAlign='left';
+  ctx.fillStyle='#b39a7c';ctx.font='11px Georgia';
+  const label=(win.cathedral?'CATHEDRAL  ·  ':'WINDOW  ')+run.n+' / '+TOTAL+(win.name?'  ·  '+win.name.toUpperCase():'')+(win.dark?'  ·  DARK':'');
+  ctx.fillText(label,16,24);
+  // heat bar
+  const bx=16,by=38,bw=CW-32,bh=14;ctx.fillStyle='rgba(0,0,0,.45)';roundRect(bx,by,bw,bh,7);ctx.fill();
+  const frac=run.heat/run.max;const hg=ctx.createLinearGradient(bx,0,bx+bw,0);hg.addColorStop(0,'#3f8fd1');hg.addColorStop(.5,'#e3862c');hg.addColorStop(1,'#e5533d');
+  ctx.save();roundRect(bx,by,bw,bh,7);ctx.clip();ctx.fillStyle=hg;ctx.fillRect(bx,by,bw*frac,bh);
+  if(frac>.75){ctx.fillStyle=`rgba(255,255,255,${.15+.15*Math.sin(now/120)})`;ctx.fillRect(bx,by,bw*frac,bh)}ctx.restore();
+  ctx.strokeStyle='rgba(255,196,120,.35)';ctx.lineWidth=1;roundRect(bx+.5,by+.5,bw-1,bh-1,7);ctx.stroke();
+  ctx.fillStyle='#f4e9d6';ctx.font='bold 10px Georgia';ctx.textAlign='center';ctx.fillText('KILN  '+Math.round(run.heat)+' / '+run.max,CW/2,by+bh/2+.5);
+  // rules
+  ctx.textAlign='left';ctx.font='14px Georgia';let ry=68;
+  for(const r of win.rules){ctx.fillStyle='#f4e9d6';const t=ruleText(r);ctx.fillText(t,16,ry);const tw=ctx.measureText(t).width;if(r.type==='shape')drawShapeIcon(16+tw+10,ry-9,r.shape,18,'#f1d28a');if(r.type==='gem')drawGem(16+tw+14,ry,6);ry+=22}
+  // frame
+  ctx.fillStyle='#1a1410';roundRect(L.ox-8,L.oy-8,c*w+16,c*h+16,6);ctx.fill();
+  ctx.strokeStyle='rgba(241,210,138,.25)';ctx.lineWidth=2;roundRect(L.ox-8,L.oy-8,c*w+16,c*h+16,6);ctx.stroke();
+  // cells
+  const inPath=new Set(path);
+  for(let i=0;i<w*h;i++){
+    const cell=win.cells[i],x=L.ox+(i%w)*c,y=L.oy+(i/w|0)*c;
+    if(!cell.vis){ctx.fillStyle='#0b0806';ctx.fillRect(x,y,c,c);ctx.fillStyle='rgba(255,255,255,.03)';ctx.fillRect(x+1,y+1,c-2,c-2);if(inPath.has(i)){ctx.fillStyle='rgba(241,210,138,.45)';ctx.fillRect(x,y,c,c)}continue}
+    if(cell.s==='free'){ctx.fillStyle='#2b2320';ctx.fillRect(x,y,c,c);ctx.fillStyle='rgba(255,236,200,.06)';ctx.fillRect(x+1,y+1,c-2,c-2)}
+    else if(cell.s==='lead'){ctx.fillStyle='#2a2422';ctx.fillRect(x,y,c,c);ctx.fillStyle='#15100e';ctx.beginPath();ctx.arc(x+c/2,y+c/2,c*.16,0,7);ctx.fill();ctx.strokeStyle='rgba(255,255,255,.08)';ctx.lineWidth=1;ctx.beginPath();ctx.arc(x+c/2,y+c/2,c*.16,0,7);ctx.stroke()}
+    else if(cell.s==='crack'){ctx.fillStyle='#6a615b';ctx.fillRect(x,y,c,c);ctx.fillStyle='rgba(255,255,255,.08)';ctx.fillRect(x+1,y+1,c-2,c*.4);crackLines(i,L)}
+    else if(cell.s==='set'){const reg=win.regions[cell.r];ctx.fillStyle=reg.col;ctx.fillRect(x,y,c,c);const lg=ctx.createLinearGradient(x,y,x+c,y+c);lg.addColorStop(0,'rgba(255,255,255,.28)');lg.addColorStop(.5,'rgba(255,255,255,.04)');lg.addColorStop(1,'rgba(0,0,0,.18)');ctx.fillStyle=lg;ctx.fillRect(x,y,c,c);
+      const age=now-reg.t;if(age<450){ctx.fillStyle=`rgba(255,255,255,${.6*(1-age/450)})`;ctx.fillRect(x,y,c,c)}}
+    if(inPath.has(i)){ctx.fillStyle='rgba(241,210,138,.45)';ctx.fillRect(x,y,c,c)}
+    if(cell.gem)drawGem(x+c/2,y+c/2,c*.16);
+  }
+  // lead lines: thick between different regions / non-set, thin inside a pane
+  ctx.lineCap='round';
+  const same=(a,b)=>a&&b&&a.s==='set'&&b.s==='set'&&a.r===b.r;
+  for(let i=0;i<w*h;i++){
+    const cell=win.cells[i],x=L.ox+(i%w)*c,y=L.oy+(i/w|0)*c;
+    const right=(i%w<w-1)?win.cells[i+1]:null,down=(i/w|0)<h-1?win.cells[i+w]:null;
+    if(right){const s=same(cell,right);ctx.strokeStyle=s?'rgba(0,0,0,.12)':'#1a1410';ctx.lineWidth=s?1:3;ctx.beginPath();ctx.moveTo(x+c,y);ctx.lineTo(x+c,y+c);ctx.stroke()}
+    if(down){const s=same(cell,down);ctx.strokeStyle=s?'rgba(0,0,0,.12)':'#1a1410';ctx.lineWidth=s?1:3;ctx.beginPath();ctx.moveTo(x,y+c);ctx.lineTo(x+c,y+c);ctx.stroke()}
+  }
+  // path line
+  if(path.length){ctx.strokeStyle='rgba(255,241,216,.9)';ctx.lineWidth=3;ctx.lineJoin='round';ctx.beginPath();path.forEach((i,k)=>{const[px,py]=cellCenter(i,L);k?ctx.lineTo(px,py):ctx.moveTo(px,py)});ctx.stroke();
+    ctx.fillStyle='#fff1d8';ctx.font='bold 12px Georgia';ctx.textAlign='center';const[px,py]=cellCenter(path[path.length-1],L);ctx.fillText(path.length,px,py-c*.3)}
+  // reclaim hint
+  if(reclaimMode){ctx.fillStyle='rgba(143,209,255,.18)';for(let i=0;i<w*h;i++)if(win.cells[i].s==='crack'){const x=L.ox+(i%w)*c,y=L.oy+(i/w|0)*c;ctx.fillRect(x,y,c,c)}}
+  // fx
+  fx=fx.filter(f=>now-f.t<1200);
+  for(const f of fx){const t=(now-f.t)/1000;
+    if(f.type==='fire'){const a=Math.sin(Math.min(1,t)*Math.PI);const rg=ctx.createRadialGradient(CW/2,L.oy+c*h/2,10,CW/2,L.oy+c*h/2,c*w);rg.addColorStop(0,`rgba(255,230,170,${.85*a})`);rg.addColorStop(1,'rgba(255,160,60,0)');ctx.fillStyle=rg;ctx.fillRect(0,0,CW,CH);
+      ctx.fillStyle=`rgba(255,241,216,${a})`;ctx.font='bold 28px Georgia';ctx.textAlign='center';ctx.fillText(f.flawless?'F L A W L E S S':'F I R E D',CW/2,L.oy+c*h/2)}
+    if(f.type==='crack'&&t<.5){ctx.fillStyle=`rgba(229,83,61,${.5*(1-t*2)})`;for(const i of f.cells){const x=L.ox+(i%w)*c,y=L.oy+(i/w|0)*c;ctx.fillRect(x,y,c,c)}}
+    if(f.type==='shatter'){ctx.fillStyle=`rgba(229,83,61,${.5*Math.min(1,t)})`;ctx.fillRect(0,0,CW,CH)}
+  }
+  ctx.restore();
+}
+function drawGem(x,y,r){ctx.fillStyle='#fff8e6';ctx.beginPath();ctx.moveTo(x,y-r);ctx.lineTo(x+r*.8,y);ctx.lineTo(x,y+r);ctx.lineTo(x-r*.8,y);ctx.closePath();ctx.fill();ctx.fillStyle='rgba(120,200,255,.7)';ctx.beginPath();ctx.moveTo(x,y-r*.5);ctx.lineTo(x+r*.4,y);ctx.lineTo(x,y+r*.5);ctx.lineTo(x-r*.4,y);ctx.closePath();ctx.fill()}
+function roundRect(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath()}
+requestAnimationFrame(draw);
+
+// ───────────────────────── input ─────────────────────────
+let dragging=false;
+function addCell(i){
+  const win=run.win,cell=win.cells[i];
+  if(path.length&&path[path.length-1]===i)return;
+  if(path.length>1&&path[path.length-2]===i){path.pop();return}
+  if(path.includes(i))return;
+  const touches=j=>path.some(p=>nbrs(p).includes(j));
+  if(cell.s==='lead'){if(!cell.vis&&path.length&&touches(i)){cell.vis=true;hitLead=true;path.push(i)}return}
+  if(cell.s!=='free')return;
+  if(!path.length){path.push(i);return}
+  // a cell joins the pane when it touches any cell already in it (so tees and crosses can be drawn)
+  if(touches(i)){path.push(i);return}
+  // bridge a fast swipe: shortest route from the new cell back to the pane through free cells
+  const prev=new Map([[i,-1]]);const q=[i];let hit=-1;
+  while(q.length&&hit<0){const cur=q.shift();for(const n of nbrs(cur)){if(prev.has(n))continue;const cs=win.cells[n];if(cs.s!=='free'||path.includes(n))continue;prev.set(n,cur);if(touches(n)){hit=n;break}q.push(n)}if(prev.size>40)break}
+  if(hit<0)return;const chain=[];let cur=hit;while(cur!==-1){chain.push(cur);cur=prev.get(cur)}if(chain.length>4)return;chain.forEach(c=>path.push(c));
+}
+cv.addEventListener('pointerdown',e=>{
+  if(!run||run.phase!=='play')return;
+  const i=cellAt(e.clientX,e.clientY);if(i<0)return;
+  if(reclaimMode){if(run.win.cells[i].s==='crack'){run.win.cells[i].s='free';run.reclaimLeft--;reclaimMode=false;sfx('dissolve');toast('Reclaimed',700);updateBar()}return}
+  dragging=true;try{cv.setPointerCapture(e.pointerId)}catch(err){}path=[];hitLead=false;addCell(i);
+});
+cv.addEventListener('pointermove',e=>{if(!dragging||!run||run.phase!=='play')return;const i=cellAt(e.clientX,e.clientY);if(i>=0)addCell(i)});
+const endDrag=()=>{if(!dragging)return;dragging=false;if(run&&run.win)commitPath();hitLead=false;if(run)updateBar()};
+cv.addEventListener('pointerup',endDrag);cv.addEventListener('pointercancel',endDrag);
+
+// ───────────────────────── sound ─────────────────────────
+let AC=null;
+function sfx(kind,n=1){
+  if(SAVE.muted)return;try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume();const t=AC.currentTime;
+    const tone=(f,dur,type='sine',vol=.12,at=0)=>{const o=AC.createOscillator(),g=AC.createGain();o.type=type;o.frequency.setValueAtTime(f,t+at);g.gain.setValueAtTime(0,t+at);g.gain.linearRampToValueAtTime(vol,t+at+.01);g.gain.exponentialRampToValueAtTime(.0001,t+at+dur);o.connect(g).connect(AC.destination);o.start(t+at);o.stop(t+at+dur+.05)};
+    if(kind==='set'){const base=440+n*40;tone(base,.25);tone(base*1.5,.35,'sine',.08,.06);tone(base*2,.45,'triangle',.05,.12)}
+    if(kind==='crack'){const b=AC.createBuffer(1,AC.sampleRate*.18,AC.sampleRate);const d=b.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*(1-i/d.length)**2;const s=AC.createBufferSource();s.buffer=b;const g=AC.createGain();g.gain.value=.25;const f=AC.createBiquadFilter();f.type='highpass';f.frequency.value=1200;s.connect(f).connect(g).connect(AC.destination);s.start();tone(110,.2,'square',.08)}
+    if(kind==='dissolve'){tone(660,.2,'triangle',.06);tone(880,.3,'triangle',.05,.08)}
+    if(kind==='fire'){for(let k=0;k<5;k++)tone(220*(1+k*.5),.5,'sine',.07,k*.07)}
+    if(kind==='shatter'){tone(90,.9,'sawtooth',.15);for(let k=0;k<6;k++)tone(900+Math.random()*1500,.3,'triangle',.05,k*.05)}
+  }catch(e){}
+}
+
+// ───────────────────────── ui ─────────────────────────
+const $=id=>document.getElementById(id);
+const show=id=>{document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));if(id)$(id).classList.add('on')};
+const hide=()=>show(null);
+document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>{hide();if(!run||run.over)show('sTitle')}));
+let toastT=null;function toast(msg,ms=1200){const t=$('toast');t.textContent=msg;t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on'),ms)}
+function updateBar(){
+  if(!run)return;$('bar').classList.toggle('on',!run.over);
+  $('bReclaim').classList.toggle('hidden',!has('reclaim'));$('bReclaim').textContent='Reclaim ('+run.reclaimLeft+')';$('bReclaim').disabled=run.reclaimLeft<=0||!run.win.cells.some(c=>c.s==='crack');$('bReclaim').classList.toggle('sel',reclaimMode);
+  $('bAnneal').classList.toggle('hidden',!(has('anneal')||relic('great')));$('bAnneal').disabled=run.annealLeft<=0;
+  const free=freeCount();$('bFire').textContent=free?'Fire ('+free+' left)':'Fire';
+}
+function titleBest(){const d=SAVE.daily[todayKey()];$('titleBest').innerHTML='Best run · window '+SAVE.best.windows+' · '+SAVE.best.glass+' glass<br>'+(d?'Today · window '+d.windows+' · peak heat '+d.peak:'Daily not yet attempted')+'<br>Relics '+SAVE.relics.length+' / '+RELICS.length}
+titleBest();
+$('bHelp').onclick=()=>show('sHelp');$('bHelp2').onclick=()=>show('sHelp');
+$('bRelics').onclick=()=>{$('relicCards').innerHTML=RELICS.map(r=>`<div class="card t2 ${SAVE.relics.includes(r.id)?'':'locked'}"><div class="nm">${r.name}</div><div class="tier">window ${r.win}</div><div class="ds">${SAVE.relics.includes(r.id)?r.desc:'Clear cathedral window '+r.win+' to unlock.'}</div></div>`).join('');show('sRelics')};
+function begin(daily){
+  newRun(daily);
+  if(!daily&&SAVE.relics.length){$('relicPickCards').innerHTML=RELICS.filter(r=>SAVE.relics.includes(r.id)).map(r=>`<div class="card t2" data-r="${r.id}"><div class="nm">${r.name}</div><div class="ds">${r.desc}</div></div>`).join('');
+    $('relicPickCards').querySelectorAll('.card').forEach(c=>c.onclick=()=>{run.relic=c.dataset.r;launch()});show('sRelicPick');return}
+  launch();
+}
+function launch(){applyRelic();hide();startWindow()}
+$('bNoRelic').onclick=()=>launch();
+$('bRun').onclick=()=>begin(false);
+$('bDaily').onclick=()=>begin(true);
+$('bFire').onclick=()=>{if(run.phase!=='play')return;const free=freeCount();const cracked=run.win.cells.filter(c=>c.s==='crack').length;const cost=free*(relic('crypt')?2:4)+(has('leadcame')?0:cracked*2);
+  if(free===0){fireWindow();return}
+  $('confTitle').textContent='Fire early?';$('confText').innerHTML=free+' empty cell'+(free>1?'s':'')+(cracked?' and '+cracked+' cracked':'')+' will heat the kiln <b>+'+cost+'</b>'+(run.heat+cost>=run.max?'. <b style="color:#e5533d">That shatters the glass.</b>':'.');
+  $('bConfYes').onclick=()=>{hide();fireWindow()};show('sConfirm')};
+$('bReclaim').onclick=()=>{reclaimMode=!reclaimMode;updateBar();if(reclaimMode)toast('Tap a cracked cell',900)};
+$('bAnneal').onclick=()=>{$('confTitle').textContent='Anneal?';$('confText').innerHTML='Shatter this window on purpose and start it again. Heat returns to <b>'+Math.round(run.windowStartHeat)+'</b>.';$('bConfYes').onclick=()=>{hide();run.annealLeft=0;run.heat=run.windowStartHeat;sfx('shatter');shake=2;run.n--;nextWindow()};show('sConfirm')};
+$('bBoons').onclick=()=>{const owned=BOONS.filter(b=>has(b.id));const syns=SYNERGIES.filter(s=>syn(s.id));
+  $('boonList').innerHTML=(run.relic?'<p><span>Relic · '+byId(RELICS,run.relic).name+'</span> — '+byId(RELICS,run.relic).desc+'</p>':'')+(owned.length?owned.map(b=>'<p><span>'+b.name+(run.boons[b.id]>1?' ×'+run.boons[b.id]:'')+'</span> — '+b.desc+'</p>').join(''):'<p class="dim">No boons yet. Fire a window to draft one.</p>')+syns.map(s=>'<p><span>Synergy · '+s.name+'</span> — '+s.desc+'</p>').join('');show('sBoons')};
+$('bMenu').onclick=()=>{$('bMute').textContent='Sound: '+(SAVE.muted?'off':'on');show('sPause')};
+$('bMute').onclick=()=>{SAVE.muted=!SAVE.muted;save();$('bMute').textContent='Sound: '+(SAVE.muted?'off':'on')};
+$('bQuit').onclick=()=>{run.over=true;recordRun();run=null;$('bar').classList.remove('on');titleBest();show('sTitle')};
+function showDraft(){
+  const offers=offerBoons();const tn=['Common','Rare','Legendary'];
+  $('draftTitle').textContent='Window '+run.n+' fired';$('draftSub').textContent='Kiln at '+Math.round(run.heat)+' / '+run.max+'. Choose a boon.';
+  $('draftCards').innerHTML=offers.map((b,k)=>`<div class="card t${b.tier}" data-k="${k}"><div class="nm">${b.name}</div><div class="tier">${b.instant?'Now':tn[b.tier]}</div><div class="ds">${b.desc}</div></div>`).join('');
+  $('draftCards').querySelectorAll('.card').forEach(c=>c.onclick=()=>{takeBoon(offers[+c.dataset.k]);hide();nextWindow()});
+  show('sDraft');
+}
+function showRelicWon(r){$('relicWonCard').innerHTML=`<div class="card t2 chosen"><div class="nm">${r.name}</div><div class="tier">relic</div><div class="ds">${r.desc}</div></div>`;$('bRelicOk').onclick=()=>{hide();afterWindow()};show('sRelicWon')}
+function showOver(won){
+  $('bar').classList.remove('on');const s=run.stats;
+  $('overTitle').textContent=won?'The Great Window stands':'Shattered';
+  $('overText').innerHTML=won?'All forty windows fired. The kiln peaked at <b>'+Math.round(s.peak)+'</b>.':'The kiln overheated on window <b>'+run.n+'</b>'+(run.win&&run.win.name?' ('+run.win.name+')':'')+'.';
+  $('overStats').innerHTML=`<div>Windows fired <b>${s.windows}</b></div><div>Glass set <b>${s.glass}</b></div><div>Cells cracked <b>${s.cracks}</b></div><div>Flawless windows <b>${s.clean}</b></div><div>Peak heat <b>${Math.round(s.peak)}</b></div><div>${run.daily?'Daily '+todayKey():'Seed '+run.seed.toString(36)}</div>`;
+  titleBest();show('sOver');
+}
+$('bAgain').onclick=()=>begin(run&&run.daily);
+$('bToTitle').onclick=()=>{run=null;show('sTitle')};
+$('bShare').onclick=async()=>{const s=run.stats;const txt=`Kiln ${run.daily?'daily '+todayKey():'run'} — window ${s.windows}/${TOTAL}, ${s.glass} glass, peak heat ${Math.round(s.peak)}. ${location.href.split('#')[0]}`;try{if(navigator.share)await navigator.share({text:txt});else{await navigator.clipboard.writeText(txt);toast('Copied',900)}}catch(e){}};
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&run&&!run.over){const on=document.querySelector('.screen.on');on?hide():$('bMenu').click()}});
+</script>
+</body>
+</html>
